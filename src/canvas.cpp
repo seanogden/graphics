@@ -259,7 +259,13 @@ vec3f canvashdl::shade_fragment(vector<float> varying)
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its fragment shader.
 	 */
-	return vec3f();
+	return vec3f(0xff, 0, 0);
+}
+
+inline vec3i translate_color(vec3f p)
+{
+    return vec3i(p);//*vec1i(255);
+    //return red;
 }
 
 /* plot
@@ -269,6 +275,14 @@ vec3f canvashdl::shade_fragment(vector<float> varying)
 void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
 	// TODO Assignment 1: Plot a pixel, calling the fragment shader.
+    vec3i color = translate_color(shade_fragment(varying));
+    
+    for (int i = 0; i < 90000; i += 3) 
+    {
+        unsigned char* p = color_buffer + i;
+        memcpy(p, color.data, 3*sizeof(unsigned char));
+    }
+
 
 	/* TODO Assignment 3: Compare the z value against the depth buffer and
 	 * only render if its less. Then set the depth buffer.
@@ -282,6 +296,8 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
 void canvashdl::plot_point(vec3f v, vector<float> varying)
 {
 	// TODO Assignment 1: Plot a point given in window coordinates.
+    vec3i p(v);
+    plot(p, varying);
 }
 
 /* plot_line

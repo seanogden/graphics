@@ -84,7 +84,8 @@ void displayfunc()
 	canvas.clear_color_buffer();
 	canvas.clear_depth_buffer();
 
-	scene.draw();
+    canvas.plot_point(vec3f(), std::vector<float>());
+	//scene.draw();
 
 	canvas.swap_buffers();
 }

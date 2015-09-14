@@ -20,7 +20,8 @@ using namespace core;
  */
 struct canvashdl
 {
-private:
+//private:
+public:
 	unsigned char *color_buffer;
 	unsigned short *depth_buffer;
 	int width, height;
