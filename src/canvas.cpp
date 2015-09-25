@@ -9,6 +9,9 @@
 #include "core/geometry.h"
 #include "light.h"
 #include "material.h"
+#include <algorithm>
+
+#define ABS(X) ((X) < 0 ? -(X) : (X))
 
 canvashdl::canvashdl(int w, int h)
 {
@@ -212,8 +215,15 @@ vec3f canvashdl::to_window(vec2i pixel)
 	/* TODO Assignment 1: Given a pixel coordinate (x from 0 to width and y from 0 to height),
 	 * convert it into window coordinates (x from -1 to 1 and y from -1 to 1).
 	 */
-	return vec3f();
+    vec2f w = vec2f(2.0, 2.0) * vec2f(pixel) / vec2f(width, height) - vec2f(1.0, 1.0);
+    return vec3f(w[0], w[1], 0.0);
 }
+
+vec3i canvashdl::to_pixel(vec3f p)
+{
+    return vec3i(vec3f(width, height, 1.0) * (p*vec3f(1.0, -1.0, 1.0) + vec3f(1.0, 1.0, 0.0))/vec3f(2.0, 2.0, 1.0));
+}
+
 
 /* unproject
  *
@@ -255,17 +265,19 @@ vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
 vec3f canvashdl::shade_fragment(vector<float> varying)
 {
 	// TODO Assignment 1: Pick a color, any color (as long as it is distinguishable from the background color).
+	return vec3f(1.0, 0, 0); //red!
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its fragment shader.
 	 */
-	return vec3f(0xff, 0, 0);
 }
 
+/* Translates from fp to int color
+ * representations.
+ */
 inline vec3i translate_color(vec3f p)
 {
-    return vec3i(p);//*vec1i(255);
-    //return red;
+    return vec3i(p)*vec1i(255); 
 }
 
 /* plot
@@ -276,13 +288,14 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
 	// TODO Assignment 1: Plot a pixel, calling the fragment shader.
     vec3i color = translate_color(shade_fragment(varying));
-    
-    for (int i = 0; i < 90000; i += 3) 
-    {
-        unsigned char* p = color_buffer + i;
-        memcpy(p, color.data, 3*sizeof(unsigned char));
-    }
 
+    std::cout << "xyz[1]: " <<  width*xyz[1] << std::endl;
+    std::cout << "width: " << width << std::endl;
+    std::cout << "y offset: " <<  width*xyz[1] << std::endl;
+    std::cout << "x offset: " << xyz[0] << std::endl;
+
+    unsigned char* p = color_buffer + 3*(width*xyz[1] + xyz[0]);
+    memcpy(p, color.data, 3*sizeof(unsigned char));
 
 	/* TODO Assignment 3: Compare the z value against the depth buffer and
 	 * only render if its less. Then set the depth buffer.
@@ -296,9 +309,95 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
 void canvashdl::plot_point(vec3f v, vector<float> varying)
 {
 	// TODO Assignment 1: Plot a point given in window coordinates.
-    vec3i p(v);
-    plot(p, varying);
+    plot(to_pixel(v), varying);
 }
+
+
+void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
+{
+    int x, y, w, h, dx1, dy1, dx2, dy2, longest, shortest, i, numerator;
+    vec3i p1, p2;
+    p1 = to_pixel(v1);
+    p2 = to_pixel(v2);
+
+    w = p2[0] - p1[0];
+    h = p2[1] - p1[1];
+    x = p1[0];
+    y = p1[1];
+
+    if (w<0) 
+    {
+        dx1 = -1;
+        dx2 = -1;
+    }
+    else if (w>0)
+    {
+        dx1 = 1;
+        dx2 = 1;
+    }
+    else
+    {
+        dx1 = 0;
+        dx2 = 0;
+    }
+
+    if (h<0) 
+    {
+        dy1 = 1;
+    }
+    else if (h>0)
+    {
+        dy1 = -1;
+    }
+    else
+    {
+        dy1 = 0;
+    }
+
+
+    longest = ABS(w) ;
+    shortest = ABS(h) ;
+
+    if (longest < shortest) 
+    {
+        std::swap(longest, shortest);
+
+        if (h < 0) 
+        {
+            dy2 = -1; 
+        }
+        else if (h > 0) 
+        {
+            dy2 = 1;
+        }
+
+        dx2 = 0; 
+    }
+    else
+    {
+        dy2 = 0;
+    }
+
+    numerator = longest >> 1 ;
+
+    for (i=0;i<=longest;i++) 
+    {
+        plot(vec3i(x,y,0), vector<float>());
+        numerator += shortest ;
+
+        if (!(numerator<longest)) {
+            numerator -= longest ;
+            x += dx1 ;
+            y += dy1 ;
+        } 
+        else 
+        {
+            x += dx2 ;
+            y += dy2 ;
+        }
+    }
+}
+
 
 /* plot_line
  *
@@ -306,11 +405,65 @@ void canvashdl::plot_point(vec3f v, vector<float> varying)
  * Algorithm for this. Don't forget to interpolate the normals and texture
  * coordinates as well.
  */
+/*
 void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
 {
 	// TODO Assignment 1: Implement Bresenham's Algorithm.
+    int x0, x1, y0, y1, dx, dy, D, x, y, z;
+    vec3i p1, p2;
+
+    //TODO: figure out how to transform from window coordinates 
+    //      to pixel coordinates 
+    z = 0; //TODO: Don't really know where to get this.
+    p1 = to_pixel(v1);
+    p2 = to_pixel(v2);
+    
+    if (p1[0] < p2[0])
+    {
+        x0 = p1[0];
+        x1 = p2[0];
+    }
+    else
+    {
+        x0 = p2[0];
+        x1 = p1[0];
+    }
+
+    if (p1[1] < p2[1])
+    {
+        y0 = p1[1];
+        y1 = p2[1];
+    }
+    else
+    {
+        y0 = p2[1];
+        y1 = p1[1];
+    }
+
+    dx = x1 - x0;
+    dy = y1 - y0;
+
+    D = 2*dy - dx;
+   
+    y = y0;
+    for (x = x0; x <= x1; ++x)
+    {
+        if (D < 0)
+        {
+            D += 2*dy;
+        } 
+        else 
+        {
+            ++y;
+            D += 2*dy - 2*dx;
+        }
+
+        plot(vec3i(x, y, z), vector<float>());
+    }
+
 	// TODO Assignment 3: Interpolate the varying values before passing them into plot.
 }
+*/
 
 /* plot_half_triangle
  *

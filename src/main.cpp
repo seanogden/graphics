@@ -84,7 +84,8 @@ void displayfunc()
 	canvas.clear_color_buffer();
 	canvas.clear_depth_buffer();
 
-    canvas.plot_point(vec3f(), std::vector<float>());
+    //canvas.plot_point(vec3f(), std::vector<float>());
+    canvas.plot_line(vec3f(0.0, 0.0, 0.0), std::vector<float>(), vec3f(1.0,1.0, 0.0), std::vector<float>());
 	//scene.draw();
 
 	canvas.swap_buffers();
@@ -987,7 +988,8 @@ int main(int argc, char **argv)
 
 	glutReshapeFunc(reshapefunc);
 	glutDisplayFunc(displayfunc);
-	glutIdleFunc(idlefunc);
+    //TODO: Reenable this shit.
+	//glutIdleFunc(idlefunc);
 
 	glutPassiveMotionFunc(pmotionfunc);
 	glutMotionFunc(motionfunc);
