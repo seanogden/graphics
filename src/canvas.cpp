@@ -221,7 +221,7 @@ vec3f canvashdl::to_window(vec2i pixel)
 
 vec3i canvashdl::to_pixel(vec3f p)
 {
-    return vec3i(vec3f(width, height, 1.0) * (p*vec3f(1.0, -1.0, 1.0) + vec3f(1.0, 1.0, 0.0))/vec3f(2.0, 2.0, 1.0));
+    return vec3i(vec3f(width, height, 1.0) * (p + vec3f(1.0, 1.0, 0.0))/vec3f(2.0, 2.0, 1.0));
 }
 
 
@@ -289,9 +289,12 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
 	// TODO Assignment 1: Plot a pixel, calling the fragment shader.
     vec3i color = translate_color(shade_fragment(varying));
 
-    std::cout << "xyz[1]: " <<  width*xyz[1] << std::endl;
+    std::cout << "x: " <<  xyz[0] << std::endl;
+    std::cout << "y: " <<  xyz[1] << std::endl;
     std::cout << "width: " << width << std::endl;
-    std::cout << "y offset: " <<  width*xyz[1] << std::endl;
+    std::cout << "height: " << height << std::endl;
+    std::cout << "y offset: " <<  width*(height - xyz[1]) << std::endl;
+    std::cout << "height*width: " <<  width*height << std::endl;
     std::cout << "x offset: " << xyz[0] << std::endl;
 
     unsigned char* p = color_buffer + 3*(width*xyz[1] + xyz[0]);
@@ -324,44 +327,51 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     h = p2[1] - p1[1];
     x = p1[0];
     y = p1[1];
-
+    
     if (w<0) 
     {
+        //first point is right of second point, so x decreases
         dx1 = -1;
         dx2 = -1;
     }
     else if (w>0)
     {
+        //first point is left of second point, so x increases
         dx1 = 1;
         dx2 = 1;
     }
     else
     {
+        //Width = 0, this is a vertical line with no change in x.
         dx1 = 0;
         dx2 = 0;
     }
 
     if (h<0) 
     {
-        dy1 = 1;
+        //first point is higher than second point, so y decreases.
+        dy1 = -1;
     }
     else if (h>0)
     {
-        dy1 = -1;
+        //first point is lower than second point, so y increases.
+        dy1 = 1;
     }
     else
     {
+        //horizontal line, no change in y
         dy1 = 0;
     }
-
 
     longest = ABS(w) ;
     shortest = ABS(h) ;
 
     if (longest < shortest) 
     {
+        //line is steep (m > 0.5)
         std::swap(longest, shortest);
 
+        //extra steps vertically for steep lines.
         if (h < 0) 
         {
             dy2 = -1; 
@@ -371,10 +381,12 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
             dy2 = 1;
         }
 
+        //for steep lines, don't move horizontally until we've moved vertically a few times.
         dx2 = 0; 
     }
     else
     {
+        //For non-steep lines, do not do extra vertical steps.
         dy2 = 0;
     }
 
@@ -385,7 +397,7 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
         plot(vec3i(x,y,0), vector<float>());
         numerator += shortest ;
 
-        if (!(numerator<longest)) {
+        if (numerator >= longest) {
             numerator -= longest ;
             x += dx1 ;
             y += dy1 ;
