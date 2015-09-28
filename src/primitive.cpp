@@ -16,7 +16,74 @@ boxhdl::boxhdl(float width, float height, float depth)
 	/* TODO Assignment 1: Generate the geometry and indices required to make a box.
 	 * Calculate its bounding box.
 	 */
+	rigid.push_back(rigidhdl());
+	rigid[0].geometry.reserve(8);
+    rigid[0].geometry.push_back(vec8f(-width, -height,  depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //0
+    rigid[0].geometry.push_back(vec8f( width, -height,  depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //1
+    rigid[0].geometry.push_back(vec8f(-width,  height,  depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //2
+    rigid[0].geometry.push_back(vec8f( width,  height,  depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //3
+    rigid[0].geometry.push_back(vec8f(-width, -height, -depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //4
+    rigid[0].geometry.push_back(vec8f( width, -height, -depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //5
+    rigid[0].geometry.push_back(vec8f(-width,  height, -depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //6
+    rigid[0].geometry.push_back(vec8f( width,  height, -depth, 0.0, 0.0, 0.0, 0.0, 0.0)); //7
 
+    //front
+    rigid[0].indices.push_back(0);
+    rigid[0].indices.push_back(1);
+    rigid[0].indices.push_back(2);
+
+    rigid[0].indices.push_back(1);
+    rigid[0].indices.push_back(2);
+    rigid[0].indices.push_back(3);
+
+    //back
+    rigid[0].indices.push_back(4);
+    rigid[0].indices.push_back(5);
+    rigid[0].indices.push_back(6);
+
+    rigid[0].indices.push_back(5);
+    rigid[0].indices.push_back(6);
+    rigid[0].indices.push_back(7);
+
+    //top
+    rigid[0].indices.push_back(2);
+    rigid[0].indices.push_back(3);
+    rigid[0].indices.push_back(6);
+
+    rigid[0].indices.push_back(6);
+    rigid[0].indices.push_back(3);
+    rigid[0].indices.push_back(7);
+
+    //right side
+    rigid[0].indices.push_back(1);
+    rigid[0].indices.push_back(3);
+    rigid[0].indices.push_back(5);
+
+    rigid[0].indices.push_back(3);
+    rigid[0].indices.push_back(5);
+    rigid[0].indices.push_back(7);
+
+    //left side
+    rigid[0].indices.push_back(0);
+    rigid[0].indices.push_back(4);
+    rigid[0].indices.push_back(6);
+
+    rigid[0].indices.push_back(0);
+    rigid[0].indices.push_back(6);
+    rigid[0].indices.push_back(2);
+    
+    //bottom
+    rigid[0].indices.push_back(0);
+    rigid[0].indices.push_back(1);
+    rigid[0].indices.push_back(4);
+
+    rigid[0].indices.push_back(1);
+    rigid[0].indices.push_back(4);
+    rigid[0].indices.push_back(5);
+
+
+
+	bound = vec6f(-width, width, -height, height, -depth, depth);
 	// TODO Assignment 3: Set up the material properties for this object
 }
 
@@ -88,9 +155,61 @@ spherehdl::~spherehdl()
  */
 cylinderhdl::cylinderhdl(float radius, float height, int slices)
 {
-	/* TODO Assignment 1: Generate the geometry and indices required to make a cylinder.
-	 * Calculate its bounding box.
-	 */
+	rigid.push_back(rigidhdl());
+
+
+	rigid[0].geometry.reserve(2 + 2*slices);
+    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = 0.0;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, 0.0, z*radius,
+                    x, 0.0, z, 0.0, 0.0));
+    }
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = height/radius;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
+                    x, y, z, 0.0, 0.0));
+    }
+
+
+    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(1 + (i+1)%slices);
+		rigid[0].indices.push_back(1 + i);
+		rigid[0].indices.push_back(0);
+	}
+
+    for (int j = 0; j < slices; j++)
+    {
+        rigid[0].indices.push_back(1 + j);
+        rigid[0].indices.push_back(1 + (j+1)%slices);
+        rigid[0].indices.push_back(1 + slices + j);
+
+        rigid[0].indices.push_back(1 + slices + j);
+        rigid[0].indices.push_back(1 + (j+1)%slices);
+        rigid[0].indices.push_back(1 + slices + (j+1)%slices);
+    }
+
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(1 + 2*slices);
+		rigid[0].indices.push_back(1 + slices + i);
+		rigid[0].indices.push_back(1 + slices + (i+1)%slices);
+	}
+
+	// (left, right, bottom, top, front, back)
+	bound = vec6f(-radius, radius, 0.0, height, -radius, radius);
+
 
 	// TODO Assignment 3: Set up the material properties for this object
 }
@@ -106,24 +225,21 @@ cylinderhdl::~cylinderhdl()
  */
 pyramidhdl::pyramidhdl(float radius, float height, int slices)
 {
-	/* TODO Assignment 1: Generate the geometry and indices required to make a pyramid.
-	 * Calculate its bounding box.
-	 */
 	rigid.push_back(rigidhdl());
 
-	rigid[0].geometry.reserve(2 + slices);
-	rigid[0].geometry.push_back(vec8f(0.0, 0.0, radius, 0.0, 0.0, 1.0, 0.0, 0.0));
-    for (int j = 0; j < slices; j++)
-    {
-        float x = radius*sin(m_pi/2.0)*cos(2.0*m_pi*(float)j/(float)slices);
-        float y = radius*sin(m_pi/2.0)*sin(2.0*m_pi*(float)j/(float)slices);
-        float z = -(height/2)/radius;
 
-        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
-                    x, y, z, 0.0, 0.0));
+	rigid[0].geometry.reserve(1 + slices);
+    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = 0.0;
+        float x = radius*sin(j*2*m_pi/slices);
+        float z = radius*cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, 0.0, z*radius,
+                    x, 0.0, z, 0.0, 0.0));
     }
 
-    rigid[0].geometry.push_back(vec8f(0.0, 0.0, -height/2, 0.0, 0.0, -1.0, 0.0, 0.0));
 
 	for (int i = 0; i < slices; i++)
 	{
@@ -133,7 +249,7 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 	}
 
 	// (left, right, bottom, top, front, back)
-	bound = vec6f(-radius, radius, -height, height, -radius, radius);
+	bound = vec6f(-radius, radius, 0.0, height, -radius, radius);
 
 	// TODO Assignment 3: Set up the material properties for this object
 }

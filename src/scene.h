@@ -43,6 +43,8 @@ struct scenehdl
 
 	bool active_camera_valid();
 	bool active_object_valid();
+    bool is_camera(objecthdl*);
+    bool is_active_camera(objecthdl*);
 
 	void create_camera();
 

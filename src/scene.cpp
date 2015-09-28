@@ -28,6 +28,27 @@ scenehdl::~scenehdl()
 
 }
 
+
+bool scenehdl::is_camera(objecthdl* obj)
+{
+    for (vector<camerahdl*>::iterator camit = cameras.begin();
+            camit != cameras.end(); ++camit)
+    {
+        if (*camit != NULL && (*camit)->model == obj)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool scenehdl::is_active_camera(objecthdl* obj)
+{
+    return cameras[active_camera]->model == obj;
+}
+
+
 /* draw
  *
  * Update the locations of all of the lights, draw all of the objects, and
@@ -41,8 +62,19 @@ void scenehdl::draw()
 	for (vector<objecthdl*>::iterator it = objects.begin();
          it != objects.end(); ++it)
     {
+
+        if (!render_cameras && is_camera(*it))
+        {
+            continue;
+        }
+
+        if (is_active_camera(*it))
+        {
+            continue;
+        }
+
         (*it)->draw(canvas);
-    
+
         if (render_normals)
         {
             (*it)->draw_normals(canvas);
@@ -53,12 +85,7 @@ void scenehdl::draw()
     {
         objects[active_object]->draw_bound(canvas);
     } 
-    
-    if (render_cameras)
-    {
-        //TODO Assignment 1: Render a pyramid where cameras[active_camera] is.
-    }
-
+   
 	/* TODO Assignment 3: Clear the uniform variables and pass the vector of
 	 * lights into the renderer as a uniform variable.
 	 * TODO Assignment 3: Update the light positions and directions

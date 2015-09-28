@@ -106,7 +106,6 @@ void canvashdl::reallocate(int w, int h)
  */
 void canvashdl::set_matrix(matrix_id matid)
 {
-    std::cout << "Setting matrix to " << matid << std::endl;
     active_matrix = matid;
 }
 
@@ -369,7 +368,8 @@ void canvashdl::plot_point(vec3f v, vector<float> varying)
 
 void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
 {
-    int x, y, w, h, dx1, dy1, dx2, dy2, longest, shortest, i, numerator;
+    
+    int x, y, w, h, dx_shortest, dy_shortest, dx_longest, dy_longest, longest, shortest, i, numerator;
     vec3i p1, p2;
     p1 = to_pixel(v1);
     p2 = to_pixel(v2);
@@ -382,36 +382,36 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     if (w<0) 
     {
         //first point is right of second point, so x decreases
-        dx1 = -1;
-        dx2 = -1;
+        dx_shortest = -1;
+        dx_longest = -1;
     }
     else if (w>0)
     {
         //first point is left of second point, so x increases
-        dx1 = 1;
-        dx2 = 1;
+        dx_shortest = 1;
+        dx_longest = 1;
     }
     else
     {
         //Width = 0, this is a vertical line with no change in x.
-        dx1 = 0;
-        dx2 = 0;
+        dx_shortest = 0;
+        dx_longest = 0;
     }
 
     if (h<0) 
     {
         //first point is higher than second point, so y decreases.
-        dy1 = -1;
+        dy_shortest = -1;
     }
     else if (h>0)
     {
         //first point is lower than second point, so y increases.
-        dy1 = 1;
+        dy_shortest = 1;
     }
     else
     {
         //horizontal line, no change in y
-        dy1 = 0;
+        dy_shortest = 0;
     }
 
     longest = ABS(w) ;
@@ -425,38 +425,41 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
         //extra steps vertically for steep lines.
         if (h < 0) 
         {
-            dy2 = -1; 
+            dy_longest = -1; 
         }
         else if (h > 0) 
         {
-            dy2 = 1;
+            dy_longest = 1;
         }
 
         //for steep lines, don't move horizontally until we've moved vertically a few times.
-        dx2 = 0; 
+        dx_longest = 0; 
     }
     else
     {
         //For non-steep lines, do not do extra vertical steps.
-        dy2 = 0;
+        dy_longest = 0;
     }
 
-    numerator = longest >> 1 ;
+    numerator = longest / 2;
 
-    for (i=0;i<=longest;i++) 
+    for (i=0; i<=longest; ++i) 
     {
         plot(vec3i(x,y,0), vector<float>());
+        
+        //add shortest to numerator each time we increment in the long direction.
         numerator += shortest ;
 
         if (numerator >= longest) {
+            //reset numerator when we've moved enough steps in the long direction. 
             numerator -= longest ;
-            x += dx1 ;
-            y += dy1 ;
+            x += dx_shortest ;
+            y += dy_shortest ;
         } 
         else 
         {
-            x += dx2 ;
-            y += dy2 ;
+            x += dx_longest ;
+            y += dy_longest ;
         }
     }
 }
