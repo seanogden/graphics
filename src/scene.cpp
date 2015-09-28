@@ -35,9 +35,29 @@ scenehdl::~scenehdl()
  */
 void scenehdl::draw()
 {
-	/* TODO Assignment 1: Draw all of the objects, and
-	 * if enabled, draw the normals and the cameras.
-	 */
+    cameras[active_camera]->project(canvas); 
+    cameras[active_camera]->view(canvas); 
+
+	for (vector<objecthdl*>::iterator it = objects.begin();
+         it != objects.end(); ++it)
+    {
+        (*it)->draw(canvas);
+    
+        if (render_normals)
+        {
+            (*it)->draw_normals(canvas);
+        }
+    }
+
+    if (active_object_valid())
+    {
+        objects[active_object]->draw_bound(canvas);
+    } 
+    
+    if (render_cameras)
+    {
+        //TODO Assignment 1: Render a pyramid where cameras[active_camera] is.
+    }
 
 	/* TODO Assignment 3: Clear the uniform variables and pass the vector of
 	 * lights into the renderer as a uniform variable.

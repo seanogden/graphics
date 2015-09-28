@@ -109,6 +109,31 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 	/* TODO Assignment 1: Generate the geometry and indices required to make a pyramid.
 	 * Calculate its bounding box.
 	 */
+	rigid.push_back(rigidhdl());
+
+	rigid[0].geometry.reserve(2 + slices);
+	rigid[0].geometry.push_back(vec8f(0.0, 0.0, radius, 0.0, 0.0, 1.0, 0.0, 0.0));
+    for (int j = 0; j < slices; j++)
+    {
+        float x = radius*sin(m_pi/2.0)*cos(2.0*m_pi*(float)j/(float)slices);
+        float y = radius*sin(m_pi/2.0)*sin(2.0*m_pi*(float)j/(float)slices);
+        float z = -(height/2)/radius;
+
+        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
+                    x, y, z, 0.0, 0.0));
+    }
+
+    rigid[0].geometry.push_back(vec8f(0.0, 0.0, -height/2, 0.0, 0.0, -1.0, 0.0, 0.0));
+
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(1 + (i+1)%slices);
+		rigid[0].indices.push_back(1 + i);
+		rigid[0].indices.push_back(0);
+	}
+
+	// (left, right, bottom, top, front, back)
+	bound = vec6f(-radius, radius, -height, height, -radius, radius);
 
 	// TODO Assignment 3: Set up the material properties for this object
 }

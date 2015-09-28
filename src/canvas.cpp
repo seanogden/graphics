@@ -106,7 +106,8 @@ void canvashdl::reallocate(int w, int h)
  */
 void canvashdl::set_matrix(matrix_id matid)
 {
-	// TODO Assignment 1: Change which matrix is active.
+    std::cout << "Setting matrix to " << matid << std::endl;
+    active_matrix = matid;
 }
 
 /* load_identity
@@ -116,7 +117,7 @@ void canvashdl::set_matrix(matrix_id matid)
  */
 void canvashdl::load_identity()
 {
-	// TODO Assignment 1: Set the active matrix to the identity matrix.
+    matrices[active_matrix] = identity<float, 4, 4>();
 }
 
 /* rotate
@@ -126,7 +127,22 @@ void canvashdl::load_identity()
  */
 void canvashdl::rotate(float angle, vec3f axis)
 {
-	// TODO Assignment 1: Multiply the active matrix by a rotation matrix.
+    float c = cos(angle);
+    float s = sin(angle);
+    float x = axis[0];
+    float y = axis[1];
+    float z = axis[2];
+    float x_2 = x*x;
+    float y_2 = y*y;
+    float z_2 = z*z;
+    
+    //Genereal rotation matrix is from the opengl glRotate documentation.
+    mat4f R = mat4f(x_2*(1-c)+c  , x*y*(1-c)-z*s, x*z*(1-c)+y*s, 0.0,
+                    y*x*(1-c)+z*s, y_2*(1-c)+c  , y*z*(1-c)-x*s, 0.0,
+                    x*z*(1-c)-y*s, y*z*(1-c)+x*s, z_2*(1-c)+c  , 0.0,
+                    0.0          , 0.0          , 0.0          , 1.0); 
+
+    matrices[active_matrix] = matrices[active_matrix]*R;
 }
 
 /* translate
@@ -136,7 +152,13 @@ void canvashdl::rotate(float angle, vec3f axis)
  */
 void canvashdl::translate(vec3f direction)
 {
-	// TODO Assignment 1: Multiply the active matrix by a translation matrix.
+    mat4f T = mat4f(1.0, 0.0, 0.0, direction[0],
+                    0.0, 1.0, 0.0, direction[1],
+                    0.0, 0.0, 1.0, direction[2],
+                    0.0, 0.0, 0.0, 1.0); 
+
+    //Genereal translation matrix is from the opengl glTranslate documentation.
+    matrices[active_matrix] = matrices[active_matrix]*T;
 }
 
 /* scale
@@ -146,7 +168,13 @@ void canvashdl::translate(vec3f direction)
  */
 void canvashdl::scale(vec3f size)
 {
-	// TODO Assignment 1: Multiply the active matrix by a scaling matrix.
+    mat4f T = mat4f(size[0], 0.0    , 0.0    , 0.0,
+                    0.0    , size[1], 0.0    , 0.0,
+                    0.0    , 0.0    , size[2], 0.0, 
+                    0.0    , 0.0    , 0.0    , 1.0); 
+
+    //Genereal translation matrix is from the opengl glTranslate documentation.
+    matrices[active_matrix] = matrices[active_matrix]*T;
 }
 
 /* perspective
@@ -156,7 +184,17 @@ void canvashdl::scale(vec3f size)
  */
 void canvashdl::perspective(float fovy, float aspect, float n, float f)
 {
-	// TODO Assignment 1: Multiply the active matrix by a perspective projection matrix.
+    float A = (f+n)/(n-f);
+    float B = 2*f*n/(n-f);
+    float g = 1.0/tan(fovy/2);
+
+    mat4f F = mat4f(g/aspect, 0.0, 0.0 , 0.0,
+                    0.0     , g  , 0.0 , 0.0,
+                    0.0     , 0.0, A   , B  , 
+                    0.0     , 0.0, -1.0, 1.0); 
+
+    //Genereal translation matrix is from the opengl glTranslate documentation.
+    matrices[active_matrix] = matrices[active_matrix]*F;
 }
 
 /* frustum
@@ -166,7 +204,18 @@ void canvashdl::perspective(float fovy, float aspect, float n, float f)
  */
 void canvashdl::frustum(float l, float r, float b, float t, float n, float f)
 {
-	// TODO Assignment 1: Multiply the active matrix by a frustum projection matrix.
+    float A = (r + l)/(r-l);
+    float B = (t + b)/(t - b);
+    float C = -(f + n)/(f - n);
+    float D = -(2*f*n)/(f-n);
+
+    mat4f F = mat4f(2*n/(r-l), 0.0      , A   , 0.0,
+                    0.0      , 2*n/(t-b), B   , 0.0,
+                    0.0      , 0.0      , C   , D  , 
+                    0.0      , 0.0      , -1.0, 1.0); 
+
+    //Genereal translation matrix is from the opengl glTranslate documentation.
+    matrices[active_matrix] = matrices[active_matrix]*F;
 }
 
 /* ortho
@@ -176,7 +225,19 @@ void canvashdl::frustum(float l, float r, float b, float t, float n, float f)
  */
 void canvashdl::ortho(float l, float r, float b, float t, float n, float f)
 {
-	// TODO Assignment 1: Multiply the active matrix by an orthographic projection matrix.
+    float tx = -(r + l)/(r - l);
+    float ty = -(t + b)/(t - b);
+    float tz = -(f + n)/(f - n);
+    float A  = 2/(r - l);
+    float B  = 2/(t - b);
+    float C  = -2/(f - n);
+
+    mat4f F = mat4f(A  , 0.0, 0.0, tx,
+                    0.0, B  , 0.0, ty,
+                    0.0, 0.0, C  , tz, 
+                    0.0, 0.0, 0.0, 1.0); 
+
+    matrices[active_matrix] = matrices[active_matrix]*F;
 }
 
 void canvashdl::viewport(int left, int bottom, int right, int top)
@@ -212,11 +273,8 @@ void canvashdl::update_normal_matrix()
  */
 vec3f canvashdl::to_window(vec2i pixel)
 {
-	/* TODO Assignment 1: Given a pixel coordinate (x from 0 to width and y from 0 to height),
-	 * convert it into window coordinates (x from -1 to 1 and y from -1 to 1).
-	 */
     vec2f w = vec2f(2.0, 2.0) * vec2f(pixel) / vec2f(width, height) - vec2f(1.0, 1.0);
-    return vec3f(w[0], w[1], 0.0);
+    return vec3f(w[0], -w[1], 1.0);
 }
 
 vec3i canvashdl::to_pixel(vec3f p)
@@ -232,8 +290,8 @@ vec3i canvashdl::to_pixel(vec3f p)
  */
 vec3f canvashdl::unproject(vec3f window)
 {
-	// TODO Assignment 1: Unproject a window coordinate into world coordinates.
-	return vec3f();
+    return inverse(matrices[modelview_matrix])*
+           (inverse(matrices[projection_matrix]))*homogenize(window);
 }
 
 /* shade_vertex
@@ -249,12 +307,14 @@ vec3f canvashdl::unproject(vec3f window)
  */
 vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
 {
-	// TODO Assignment 1: Do all of the necessary transformations (normal, projection, modelview, etc)
+    vec4f vertex = vec4f(v[0], v[1], v[2], 1.0);
+    vertex = matrices[projection_matrix] * matrices[modelview_matrix] * vertex;
+    vertex = vertex/vertex[3];
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its vertex shader.
 	 */
-	return vec3f();
+	return vec3f(vertex[0], vertex[1], vertex[2]);
 }
 
 /* shade_fragment
@@ -264,7 +324,6 @@ vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
  */
 vec3f canvashdl::shade_fragment(vector<float> varying)
 {
-	// TODO Assignment 1: Pick a color, any color (as long as it is distinguishable from the background color).
 	return vec3f(1.0, 0, 0); //red!
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
@@ -286,20 +345,13 @@ inline vec3i translate_color(vec3f p)
  */
 void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
-	// TODO Assignment 1: Plot a pixel, calling the fragment shader.
     vec3i color = translate_color(shade_fragment(varying));
-
-    std::cout << "x: " <<  xyz[0] << std::endl;
-    std::cout << "y: " <<  xyz[1] << std::endl;
-    std::cout << "width: " << width << std::endl;
-    std::cout << "height: " << height << std::endl;
-    std::cout << "y offset: " <<  width*(height - xyz[1]) << std::endl;
-    std::cout << "height*width: " <<  width*height << std::endl;
-    std::cout << "x offset: " << xyz[0] << std::endl;
-
-    unsigned char* p = color_buffer + 3*(width*xyz[1] + xyz[0]);
-    memcpy(p, color.data, 3*sizeof(unsigned char));
-
+    size_t offset = 3*(width*xyz[1] + xyz[0]);
+    if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height)
+    { 
+        unsigned char* p = color_buffer + offset;
+        memcpy(p, color.data, 3*sizeof(unsigned char));
+    }
 	/* TODO Assignment 3: Compare the z value against the depth buffer and
 	 * only render if its less. Then set the depth buffer.
 	 */
@@ -311,7 +363,6 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
  */
 void canvashdl::plot_point(vec3f v, vector<float> varying)
 {
-	// TODO Assignment 1: Plot a point given in window coordinates.
     plot(to_pixel(v), varying);
 }
 
@@ -410,73 +461,6 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     }
 }
 
-
-/* plot_line
- *
- * Plot a line defined by two points in window coordinates. Use Bresenham's
- * Algorithm for this. Don't forget to interpolate the normals and texture
- * coordinates as well.
- */
-/*
-void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
-{
-	// TODO Assignment 1: Implement Bresenham's Algorithm.
-    int x0, x1, y0, y1, dx, dy, D, x, y, z;
-    vec3i p1, p2;
-
-    //TODO: figure out how to transform from window coordinates 
-    //      to pixel coordinates 
-    z = 0; //TODO: Don't really know where to get this.
-    p1 = to_pixel(v1);
-    p2 = to_pixel(v2);
-    
-    if (p1[0] < p2[0])
-    {
-        x0 = p1[0];
-        x1 = p2[0];
-    }
-    else
-    {
-        x0 = p2[0];
-        x1 = p1[0];
-    }
-
-    if (p1[1] < p2[1])
-    {
-        y0 = p1[1];
-        y1 = p2[1];
-    }
-    else
-    {
-        y0 = p2[1];
-        y1 = p1[1];
-    }
-
-    dx = x1 - x0;
-    dy = y1 - y0;
-
-    D = 2*dy - dx;
-   
-    y = y0;
-    for (x = x0; x <= x1; ++x)
-    {
-        if (D < 0)
-        {
-            D += 2*dy;
-        } 
-        else 
-        {
-            ++y;
-            D += 2*dy - 2*dx;
-        }
-
-        plot(vec3i(x, y, z), vector<float>());
-    }
-
-	// TODO Assignment 3: Interpolate the varying values before passing them into plot.
-}
-*/
-
 /* plot_half_triangle
  *
  * Plot half of a triangle defined by three points in window coordinates (v1, v2, v3).
@@ -500,10 +484,19 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
  */
 void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying, vec3f v3, vector<float> v3_varying)
 {
-	/* TODO Assignment 1: Use the above functions to plot a whole triangle. Don't forget to
-	 * take into account the polygon mode. You should be able to render the
-	 * triangle as 3 points or 3 lines.
-	 */
+    if (polygon_mode == line)
+    {
+        plot_line(v1, v1_varying, v2, v2_varying);
+        plot_line(v2, v2_varying, v3, v3_varying);
+        plot_line(v3, v3_varying, v1, v1_varying);
+    }
+    else
+    {
+        plot_point(v1, v1_varying);
+        plot_point(v2, v2_varying);
+        plot_point(v3, v3_varying);
+    }
+
 	// TODO Assignment 2: Calculate the average varying vector for flat shading and call plot_half_triangle as needed.
 }
 
@@ -517,7 +510,14 @@ void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vect
  */
 void canvashdl::draw_points(const vector<vec8f> &geometry)
 {
-	// TODO Assignment 1: call the vertex shader on the geometry, then pass it to plot_point
+
+    for (std::vector<vec8f>::const_iterator it = geometry.begin(); it != geometry.end(); ++it)
+    {
+        std::vector<float> varying = std::vector<float>();
+        vec8f p = shade_vertex(*it, varying);
+        plot_point(p, varying);
+    }
+
 	// TODO Assignment 2: Implement frustum clipping and back-face culling
 	// TODO Assignment 3: Update the normal matrix.
 }
@@ -532,7 +532,17 @@ void canvashdl::draw_points(const vector<vec8f> &geometry)
  */
 void canvashdl::draw_lines(const vector<vec8f> &geometry, const vector<int> &indices)
 {
-	// TODO Assignment 1: call the vertex shader on the geometry, then pass it to plot_line
+
+    for (std::vector<int>::const_iterator it = indices.begin(); it != indices.end(); ++it)
+    {
+        std::vector<float> v1 = std::vector<float>();
+        vec3f p1 = shade_vertex(geometry[*it], v1);
+        ++it;
+        std::vector<float> v2 = std::vector<float>();
+        vec3f p2 = shade_vertex(geometry[*it], v2);
+        plot_line(p1, v1, p2, v2);
+    }
+
 	// TODO Assignment 2: Implement frustum clipping and back-face culling
 	// TODO Assignment 3: Update the normal matrix.
 }
@@ -547,7 +557,20 @@ void canvashdl::draw_lines(const vector<vec8f> &geometry, const vector<int> &ind
  */
 void canvashdl::draw_triangles(const vector<vec8f> &geometry, const vector<int> &indices)
 {
-	// TODO Assignment 1: call the vertex shader on the geometry, then pass it to plot_triangle
+
+    for (std::vector<int>::const_iterator it = indices.begin(); it != indices.end(); ++it)
+    {
+        std::vector<float> v1 = std::vector<float>();
+        vec3f p1 = shade_vertex(geometry[*it], v1);
+        ++it;
+        std::vector<float> v2 = std::vector<float>();
+        vec3f p2 = shade_vertex(geometry[*it], v2);
+        ++it;
+        std::vector<float> v3 = std::vector<float>();
+        vec3f p3 = shade_vertex(geometry[*it], v3);
+        plot_triangle(p1, v1, p2, v2, p3, v3);
+    }
+
 	// TODO Assignment 2: Implement frustum clipping and back-face culling
 	// TODO Assignment 3: Update the normal matrix.
 }

@@ -24,7 +24,7 @@ rigidhdl::~rigidhdl()
  */
 void rigidhdl::draw(canvashdl *canvas)
 {
-	// TODO Assignment 1: Send the rigid body geometry to the renderer
+    canvas->draw_triangles(geometry, indices);
 }
 
 objecthdl::objecthdl()
@@ -65,7 +65,24 @@ objecthdl::~objecthdl()
  */
 void objecthdl::draw(canvashdl *canvas)
 {
-	// TODO Assignment 1: Send transformations and geometry to the renderer to draw the object
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(position);
+
+    canvas->rotate(orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(orientation[2], vec3f(0, 0, 1));
+
+    canvas->scale(vec3f(scale,scale,scale));
+
+    for (vector<rigidhdl>::iterator it = rigid.begin();
+         it != rigid.end(); ++it)
+    {
+        it->draw(canvas);
+    }
+    
+    canvas->matrices[canvas->active_matrix] = snapshot;
+
 	// TODO Assignment 3: Pass the material as a uniform into the renderer
 }
 
@@ -76,9 +93,78 @@ void objecthdl::draw(canvashdl *canvas)
  */
 void objecthdl::draw_bound(canvashdl *canvas)
 {
-	/* TODO Assignment 1: Generate the geometry for the bounding box and send the necessary
-	 * transformations and geometry to the renderer
-	 */
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(position);
+
+    canvas->rotate(orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(orientation[2], vec3f(0, 0, 1));
+
+    canvas->scale(vec3f(scale, scale, scale));
+
+    float l, r, b, t, n, f;
+    l = bound[0];
+    r = bound[1];
+    b = bound[2];
+    t = bound[3];
+    n = bound[4];
+    f = bound[5];
+
+    std::vector<vec8f> v;
+    v.push_back(vec8f(l, b, n, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(l, t, n, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(r, b, n, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(r, t, n, 0, 0, 0, 0, 0));
+
+    v.push_back(vec8f(l, b, f, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(l, t, f, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(r, b, f, 0, 0, 0, 0, 0));
+    v.push_back(vec8f(r, t, f, 0, 0, 0, 0, 0));
+
+    std::vector<int> i;
+    //front face
+    i.push_back(0);
+    i.push_back(1);
+
+    i.push_back(2);
+    i.push_back(3);
+
+    i.push_back(1);
+    i.push_back(3);
+    
+    i.push_back(0);
+    i.push_back(2);
+    
+    //cross bars
+    i.push_back(2);
+    i.push_back(6);
+
+    i.push_back(3);
+    i.push_back(7);
+    
+    i.push_back(0);
+    i.push_back(4);
+
+    i.push_back(1);
+    i.push_back(5);
+    
+    //back face
+    i.push_back(4);
+    i.push_back(5);
+
+    i.push_back(6);
+    i.push_back(7);
+
+    i.push_back(5);
+    i.push_back(7);
+    
+    i.push_back(4);
+    i.push_back(6);
+    
+    canvas->draw_lines(v, i);
+    canvas->matrices[canvas->active_matrix] = snapshot;
+
 	// TODO Assignment 3: clear the material in the uniform list
 }
 

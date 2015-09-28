@@ -79,6 +79,7 @@ public:
 		viewport_matrix = 3
 	} active_matrix;
 
+    mat4f get_active_matrix();
 	void set_matrix(matrix_id matid);
 	void load_identity();
 	void rotate(float angle, vec3f axis);
