@@ -240,6 +240,7 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
                     x, 0.0, z, 0.0, 0.0));
     }
 
+    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
 
 	for (int i = 0; i < slices; i++)
 	{
@@ -248,6 +249,13 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 		rigid[0].indices.push_back(0);
 	}
 
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(1 + (i+1)%slices);
+		rigid[0].indices.push_back(1 + i);
+		rigid[0].indices.push_back(rigid[0].geometry.size() - 1);
+    }
+	
 	// (left, right, bottom, top, front, back)
 	bound = vec6f(-radius, radius, 0.0, height, -radius, radius);
 

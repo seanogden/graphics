@@ -13,6 +13,7 @@
 
 #define ABS(X) ((X) < 0 ? -(X) : (X))
 
+//TODO Assignment 1: look_at, make red into white, normals.
 canvashdl::canvashdl(int w, int h)
 {
 	last_reshape_time = -1.0;
@@ -323,7 +324,7 @@ vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
  */
 vec3f canvashdl::shade_fragment(vector<float> varying)
 {
-	return vec3f(1.0, 0, 0); //red!
+	return vec3f(1.0, 1.0, 1.0); //white!
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its fragment shader.
@@ -335,7 +336,7 @@ vec3f canvashdl::shade_fragment(vector<float> varying)
  */
 inline vec3i translate_color(vec3f p)
 {
-    return vec3i(p)*vec1i(255); 
+    return vec3i(p)*255; 
 }
 
 /* plot

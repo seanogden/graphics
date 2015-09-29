@@ -179,6 +179,71 @@ void objecthdl::draw_normals(canvashdl *canvas, bool face)
 	/* TODO Assignment 1: Generate the geometry to display the normals and send the necessary
 	 * transformations and geometry to the renderer
 	 */
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(position);
+
+    canvas->rotate(orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(orientation[2], vec3f(0, 0, 1));
+
+    canvas->scale(vec3f(scale, scale, scale));
+
+    std::vector<vec8f> v;
+    std::vector<int> i;
+
+    int j = 0;
+
+    if (face)
+    {
+        for (std::vector<rigidhdl>::iterator rit = rigid.begin();
+                rit != rigid.end(); ++rit)
+        {
+            for (std::vector<int>::iterator it = rit->indices.begin();
+                    it != rit->indices.end(); ++it)
+            {
+                vec3f p1 = rit->geometry[*(it++)];
+                vec3f p2 = rit->geometry[*(it++)];
+                vec3f p3 = rit->geometry[*it];
+                vec3f norm = cross(p2 - p1, p3 - p1);
+
+                //check if facing the right direction.
+                float s = dot(norm, vec3f(p1[3],p1[4],p1[5]));
+                if (s < 0)
+                {
+                    norm = -norm;
+                }
+                vec3f centroid = (p1 + p2 + p3)*float(1.0/3.0);
+                v.push_back(centroid);
+                v.push_back(centroid + norm);
+                i.push_back(j++);
+                i.push_back(j++);
+
+            }
+        }
+    }
+    else
+    {
+        for (std::vector<rigidhdl>::iterator rit = rigid.begin();
+                rit != rigid.end(); ++rit)
+        {
+            for (std::vector<vec8f>::iterator it = rit->geometry.begin();
+                    it != rit->geometry.end(); ++it)
+            {
+                vec8f p = *it;
+                vec8f p2 = p + vec3f(p[3], p[4], p[5]);
+                v.push_back(p);
+                v.push_back(p2);
+                i.push_back(j++);
+                i.push_back(j++);
+            }
+        }
+    }
+
+    
+    canvas->draw_lines(v, i);
+    canvas->matrices[canvas->active_matrix] = snapshot;
+
 
 	// TODO Assignment 3: clear the material in the uniform list before rendering
 }
