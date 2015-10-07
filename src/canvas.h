@@ -48,6 +48,7 @@ public:
 
 	// Bresenham's Algorithms
 	void plot(vec3i xyz, vector<float> varying);
+	inline void plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<float> varying);
 	void plot_point(vec3f v, vector<float> varying);
 	void plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying);
 	void plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2, vector<float> v2_varying, vec3i s3, vector<float> v3_varying, vector<float> ave_varying);

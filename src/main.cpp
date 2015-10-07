@@ -87,7 +87,13 @@ void displayfunc()
     //canvas.plot_triangle(vec3f(-0.5, 0.9, 0.0), std::vector<float>(), 
     //                     vec3f( 0.0, 1.0, 0.0), std::vector<float>(), 
     //                     vec3f( 1.0,-0.9, 0.0), std::vector<float>()); 
-	scene.draw();
+    canvas.polygon_mode = canvashdl::fill;
+    canvas.plot_triangle(
+                              vec3f(-1.0, 0.0, 0.0), vector<float>(),
+                              vec3f(0.0, 1.0, 0.0), vector<float>(),
+                              vec3f(1.0, -1.0, 0), vector<float>());
+                              
+	//scene.draw();
 
 	canvas.swap_buffers();
 }

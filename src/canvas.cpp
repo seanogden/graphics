@@ -401,13 +401,13 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     x = p1[0];
     y = p1[1];
     
-    if (w<0) 
+    if (w < 0) 
     {
         //first point is right of second point, so x decreases
         dx_shortest = -1;
         dx_longest = -1;
     }
-    else if (w>0)
+    else if (w > 0)
     {
         //first point is left of second point, so x increases
         dx_shortest = 1;
@@ -420,12 +420,12 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
         dx_longest = 0;
     }
 
-    if (h<0) 
+    if (h < 0) 
     {
         //first point is higher than second point, so y decreases.
         dy_shortest = -1;
     }
-    else if (h>0)
+    else if (h > 0)
     {
         //first point is lower than second point, so y increases.
         dy_shortest = 1;
@@ -485,8 +485,16 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     }
 }
 
-void plot_horizontal(int x1, int y1, int x2, int y2)
+void canvashdl::plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<float> varying)
 {
+    int inc = 1;
+    int width = ABS(x1 - x2);
+    if (x2 < x1) inc = -1;
+
+    for (int i = 0; i < width; ++i)
+    {
+        plot(vec3i(x1 + i, y, z1), varying);
+    }
 }
 
 /* plot_half_triangle
@@ -521,6 +529,13 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
     int longest1 = ABS(w1) ;
     int shortest1 = ABS(h1) ;
 
+    if (!(longest1>shortest1)) {
+        longest1 = ABS(h1) ;
+        shortest1 = ABS(w1) ;
+        if (h1<0) dy_longest1 = -1 ; else if (h1>0) dy_longest1 = 1 ;
+        dx_longest1 = 0 ;            
+    }
+
     numerator1 = longest1 / 2;
 
     w2 = s3[0] - s1[0];
@@ -534,6 +549,13 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
     if (w2<0) dx_longest2 = -1 ; else if (w2>0) dx_longest2 = 1 ;
     int longest2 = ABS(w2) ;
     int shortest2 = ABS(h2) ;
+
+    if (!(longest2>shortest2)) {
+        longest2 = ABS(h2) ;
+        shortest2 = ABS(w2) ;
+        if (h2<0) dy_longest2 = -1 ; else if (h2>0) dy_longest2 = 1 ;
+        dx_longest2 = 0 ;            
+    }
 
     numerator2 = longest2 / 2;
 
@@ -592,7 +614,7 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
             }
         }
 
-        plot_horizontal(x1, y1, x2, y2);
+        plot_horizontal(x1, x2, 0, 0, y2, vector<float>());
 
         if (x2 == s3[0] && y2 == s3[1] && x1 == s2[0] && y1 == s2[1]) break;
 
@@ -615,6 +637,25 @@ void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vect
         plot_line(v1, v1_varying, v2, v2_varying);
         plot_line(v2, v2_varying, v3, v3_varying);
         plot_line(v3, v3_varying, v1, v1_varying);
+    }
+    else if (polygon_mode == fill)
+    {
+        //Sort the vertices in order of y coordinate
+        if (v1[1] > v2[1])
+            swap(v1,v2);
+        if (v2[1] > v3[1])
+            swap(v2,v3);
+        if (v1[1] > v2[1])
+            swap(v1,v2);
+
+        //Find intersection of horizontal line from v2 to line between v1 and v3
+        float x4 = v1[0] + (v2[1] - v1[1])/(v3[1] - v1[1]) * (v3[0] - v1[0]);
+        vec3f v4(x4, v2[1], 0.0);
+
+        //plot half triangle v1, v2, v4
+        plot_half_triangle(to_pixel(v1), v1_varying, to_pixel(v2), v2_varying, to_pixel(v4), vector<float>(), vector<float>());
+        //plot half triangle v3, v2, v4
+        plot_half_triangle(to_pixel(v3), v3_varying, to_pixel(v2), v2_varying, to_pixel(v4), vector<float>(), vector<float>());
     }
     else
     {
