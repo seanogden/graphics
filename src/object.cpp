@@ -176,9 +176,6 @@ void objecthdl::draw_bound(canvashdl *canvas)
  */
 void objecthdl::draw_normals(canvashdl *canvas, bool face)
 {
-	/* TODO Assignment 1: Generate the geometry to display the normals and send the necessary
-	 * transformations and geometry to the renderer
-	 */
     canvas->set_matrix(canvashdl::modelview_matrix);
     mat4f snapshot = canvas->matrices[canvas->active_matrix];
     canvas->translate(position);
@@ -196,6 +193,8 @@ void objecthdl::draw_normals(canvashdl *canvas, bool face)
 
     if (face)
     {
+        //for face normals, iterate over indices so we can look at each
+        //triangle as a whole.
         for (std::vector<rigidhdl>::iterator rit = rigid.begin();
                 rit != rigid.end(); ++rit)
         {
@@ -213,6 +212,8 @@ void objecthdl::draw_normals(canvashdl *canvas, bool face)
                 {
                     norm = -norm;
                 }
+
+                //Make the normal come from the centroid of the triangle.
                 vec3f centroid = (p1 + p2 + p3)*float(1.0/3.0);
                 v.push_back(centroid);
                 v.push_back(centroid + norm);
@@ -224,14 +225,18 @@ void objecthdl::draw_normals(canvashdl *canvas, bool face)
     }
     else
     {
+        //For vertex normals, iterate over all vertices.
         for (std::vector<rigidhdl>::iterator rit = rigid.begin();
                 rit != rigid.end(); ++rit)
         {
             for (std::vector<vec8f>::iterator it = rit->geometry.begin();
                     it != rit->geometry.end(); ++it)
             {
+                //make normal lines from vertex (p) in direction p[3:5]
+                //  this requires adding p[0:2] to p[3:5] to start at the vertex and not
+                //  the origin.
                 vec8f p = *it;
-                vec8f p2 = p + vec3f(p[3], p[4], p[5]);
+                vec8f p2 = p + vec3f(p[3], p[4], p[5])/float(10.0);
                 v.push_back(p);
                 v.push_back(p2);
                 i.push_back(j++);

@@ -13,7 +13,6 @@
 
 #define ABS(X) ((X) < 0 ? -(X) : (X))
 
-//TODO Assignment 1: look_at, make red into white, normals.
 canvashdl::canvashdl(int w, int h)
 {
 	last_reshape_time = -1.0;
@@ -259,6 +258,24 @@ void canvashdl::viewport(int left, int bottom, int right, int top)
 void canvashdl::look_at(vec3f eye, vec3f at, vec3f up)
 {
 	// TODO Assignment 1: Emulate the functionality of gluLookAt
+    vec3f f = norm(at - eye);
+    vec3f UP = norm(up);
+    vec3f s = cross(f, UP);
+    vec3f u = cross(norm(s), f);
+
+    std::cout << eye << std::endl;
+    std::cout << at << std::endl;
+    std::cout << up << std::endl;
+    //std::cout << s << std::endl;
+    //std::cout << u << std::endl;
+
+    mat4f M = mat4f( s[0],  s[1],  s[2], 0.0,
+                     u[0],  u[1],  u[2], 0.0,
+                    -f[0], -f[1], -f[2], 0.0,
+                      0.0,   0.0,   0.0, 1.0);
+
+    matrices[active_matrix] = matrices[active_matrix] * M;
+    translate(-eye);
 }
 
 void canvashdl::update_normal_matrix()
@@ -324,7 +341,7 @@ vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
  */
 vec3f canvashdl::shade_fragment(vector<float> varying)
 {
-	return vec3f(1.0, 1.0, 1.0); //white!
+	return white; //white!
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its fragment shader.
@@ -347,10 +364,14 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
     vec3i color = translate_color(shade_fragment(varying));
     size_t offset = 3*(width*xyz[1] + xyz[0]);
+
     if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height)
     { 
         unsigned char* p = color_buffer + offset;
-        memcpy(p, color.data, 3*sizeof(unsigned char));
+        p[0] = (unsigned char)color[0];
+        p[1] = (unsigned char)color[1];
+        p[2] = (unsigned char)color[2];
+
     }
 	/* TODO Assignment 3: Compare the z value against the depth buffer and
 	 * only render if its less. Then set the depth buffer.
@@ -369,7 +390,7 @@ void canvashdl::plot_point(vec3f v, vector<float> varying)
 
 void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
 {
-    
+    //algorithm explained at http://tech-algorithm.com/articles/drawing-line-using-bresenham-algorithm/ 
     int x, y, w, h, dx_shortest, dy_shortest, dx_longest, dy_longest, longest, shortest, i, numerator;
     vec3i p1, p2;
     p1 = to_pixel(v1);
@@ -438,7 +459,6 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     }
     else
     {
-        //For non-steep lines, do not do extra vertical steps.
         dy_longest = 0;
     }
 
@@ -465,6 +485,10 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
     }
 }
 
+void plot_horizontal(int x1, int y1, int x2, int y2)
+{
+}
+
 /* plot_half_triangle
  *
  * Plot half of a triangle defined by three points in window coordinates (v1, v2, v3).
@@ -475,8 +499,106 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
 void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2, vector<float> v2_varying, vec3i s3, vector<float> v3_varying, vector<float> ave_varying)
 {
 	// TODO Assignment 2: Implement Bresenham's half triangle fill algorithm
-
+    // 1.  Find highest y-coordinate point. Call this A.
+    // 2.  Find middle y-coordinate point.  Call this B.
+    // 3.  Find intersection of horizontal line between middle y-coordinate point and line between other 2 points.  Call this C
+    // 4.  Draw lines from A to B and A to C simultaneously.
+    //     -When you move y coordinates, interrupt line drawing to call plot_line between current coordinates on each line.
+    //     -resume line drawing. 
 	// TODO Assignment 3: Interpolate the varying values before passing them into plot.
+    int x1, y1, w1, h1, numerator1;
+    int x2, y2, w2, h2, numerator2;
+
+    w1 = s2[0] - s1[0];
+    h1 = s2[1] - s1[1];
+    x1 = s1[0];
+    y1 = s1[1];
+ 
+    int dx_shortest1 = 0, dy_shortest1 = 0, dx_longest1 = 0, dy_longest1 = 0 ;
+    if (w1<0) dx_shortest1 = -1 ; else if (w1>0) dx_shortest1 = 1 ;
+    if (h1<0) dy_shortest1 = -1 ; else if (h1>0) dy_shortest1 = 1 ;
+    if (w1<0) dx_longest1 = -1 ; else if (w1>0) dx_longest1 = 1 ;
+    int longest1 = ABS(w1) ;
+    int shortest1 = ABS(h1) ;
+
+    numerator1 = longest1 / 2;
+
+    w2 = s3[0] - s1[0];
+    h2 = s3[1] - s1[1];
+    x2 = s1[0];
+    y2 = s1[1];
+
+    int dx_shortest2 = 0, dy_shortest2 = 0, dx_longest2 = 0, dy_longest2 = 0 ;
+    if (w2<0) dx_shortest2 = -1 ; else if (w2>0) dx_shortest2 = 1 ;
+    if (h2<0) dy_shortest2 = -1 ; else if (h2>0) dy_shortest2 = 1 ;
+    if (w2<0) dx_longest2 = -1 ; else if (w2>0) dx_longest2 = 1 ;
+    int longest2 = ABS(w2) ;
+    int shortest2 = ABS(h2) ;
+
+    numerator2 = longest2 / 2;
+
+    for(;;)
+    {
+        for(;;)
+        {
+            plot(vec3i(x1,y1,0), vector<float>());
+
+            if (x1 == s2[0] && y1 == s2[1]) break;
+
+            //add shortest to numerator each time we increment in the long direction.
+            numerator1 += shortest1 ;
+
+            if (numerator1 >= longest1) {
+                //reset numerator when we've moved enough steps in the long direction. 
+                numerator1 -= longest1 ;
+                x1 += dx_shortest1 ;
+                y1 += dy_shortest1 ;
+
+                if (dy_shortest1 != 0) break;
+            } 
+            else 
+            {
+                x1 += dx_longest1 ;
+                y1 += dy_longest1 ;
+
+                if (dy_longest1 != 0) break;
+            }
+        }
+
+
+        for(;;)
+        {
+            plot(vec3i(x2,y2,0), vector<float>());
+
+            if (x2 == s3[0] && y2 == s3[1]) break;
+
+            //add shortest to numerator each time we increment in the long direction.
+            numerator2 += shortest2 ;
+
+            if (numerator2 >= longest2) {
+                //reset numerator when we've moved enough steps in the long direction. 
+                numerator2 -= longest2 ;
+                x2 += dx_shortest2 ;
+                y2 += dy_shortest2 ;
+
+                if (dy_shortest2 != 0) break;
+            } 
+            else 
+            {
+                x2 += dx_longest2 ;
+                y2 += dy_longest2 ;
+
+                if (dy_longest2 != 0) break;
+            }
+        }
+
+        plot_horizontal(x1, y1, x2, y2);
+
+        if (x2 == s3[0] && y2 == s3[1] && x1 == s2[0] && y1 == s2[1]) break;
+
+    }
+
+
 }
 
 /* plot_triangle

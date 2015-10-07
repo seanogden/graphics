@@ -13,6 +13,100 @@
  */
 boxhdl::boxhdl(float width, float height, float depth)
 {
+/*
+	rigid.push_back(rigidhdl());
+
+	rigid[0].geometry.reserve(24);
+
+    //top
+    rigid[0].geometry.push_back(vec8f(-1.0, 1.0, -1.0,
+                    0.0, 1.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(1.0, 1.0, -1.0,
+                    0.0, 1.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(1.0, 1.0, 1.0,
+                    0.0, 1.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(-1.0, 1.0, 1.0,
+                    0.0, 1.0, 0.0, 0.0, 0.0));
+  
+    //left side
+    rigid[0].geometry.push_back(vec8f(-1.0, 1.0, -1.0,
+                    -1.0, 0.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(-1.0, 1.0, 1.0,
+                    -1.0, 0.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(-1.0, 0.0, 1.0,
+                    -1.0, 0.0, 0.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(-1.0, 0.0, -1.0,
+                    -1.0, 0.0, 0.0, 0.0, 0.0));
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = height/radius;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
+                    x, 0.0, z, 0.0, 0.0));
+    }
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = 0.0;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, 0.0, z*radius,
+                    x, 0.0, z, 0.0, 0.0));
+    }
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = height/radius;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
+                    0.0, 1.0, 0.0, 0.0, 0.0));
+    }
+
+
+    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0));
+
+    //top of cylinder
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(1 + (i+1)%slices);
+		rigid[0].indices.push_back(1 + i);
+		rigid[0].indices.push_back(0);
+	}
+
+    int offset = slices;
+
+    //middle of cylinder
+    for (int j = 0; j < slices; j++)
+    {
+        rigid[0].indices.push_back(offset + 1 + j);
+        rigid[0].indices.push_back(offset + 1 + (j+1)%slices);
+        rigid[0].indices.push_back(offset + 1 + slices + j);
+
+        rigid[0].indices.push_back(offset + 1 + slices + j);
+        rigid[0].indices.push_back(offset + 1 + (j+1)%slices);
+        rigid[0].indices.push_back(offset + 1 + slices + (j+1)%slices);
+    }
+
+    offset = 2*slices;
+
+    //bottom of cylinder
+	for (int i = 0; i < slices; i++)
+	{
+		rigid[0].indices.push_back(offset + 1 + 2*slices);
+		rigid[0].indices.push_back(offset + 1 + slices + i);
+		rigid[0].indices.push_back(rigid[0].geometry.size() - 1);
+	}
+
+	// (left, right, bottom, top, front, back)
+	bound = vec6f(-radius, radius, 0.0, height, -radius, radius);
+
+
+	// TODO Assignment 3: Set up the material properties for this object
+}
+*/
 	/* TODO Assignment 1: Generate the geometry and indices required to make a box.
 	 * Calculate its bounding box.
 	 */
@@ -159,7 +253,25 @@ cylinderhdl::cylinderhdl(float radius, float height, int slices)
 
 
 	rigid[0].geometry.reserve(2 + 2*slices);
-    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0));
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = 0.0;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, 0.0, z*radius,
+                    0.0, -1.0, 0.0, 0.0, 0.0));
+    }
+
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = height/radius;
+        float x = sin(j*2*m_pi/slices);
+        float z = cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
+                    x, 0.0, z, 0.0, 0.0));
+    }
 
     for (int j = 0; j < slices; ++j)
     {
@@ -176,12 +288,13 @@ cylinderhdl::cylinderhdl(float radius, float height, int slices)
         float x = sin(j*2*m_pi/slices);
         float z = cos(j*2*m_pi/slices);
         rigid[0].geometry.push_back(vec8f(x*radius, y*radius, z*radius,
-                    x, y, z, 0.0, 0.0));
+                    0.0, 1.0, 0.0, 0.0, 0.0));
     }
 
 
-    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0));
 
+    //top of cylinder
 	for (int i = 0; i < slices; i++)
 	{
 		rigid[0].indices.push_back(1 + (i+1)%slices);
@@ -189,22 +302,28 @@ cylinderhdl::cylinderhdl(float radius, float height, int slices)
 		rigid[0].indices.push_back(0);
 	}
 
+    int offset = slices;
+
+    //middle of cylinder
     for (int j = 0; j < slices; j++)
     {
-        rigid[0].indices.push_back(1 + j);
-        rigid[0].indices.push_back(1 + (j+1)%slices);
-        rigid[0].indices.push_back(1 + slices + j);
+        rigid[0].indices.push_back(offset + 1 + j);
+        rigid[0].indices.push_back(offset + 1 + (j+1)%slices);
+        rigid[0].indices.push_back(offset + 1 + slices + j);
 
-        rigid[0].indices.push_back(1 + slices + j);
-        rigid[0].indices.push_back(1 + (j+1)%slices);
-        rigid[0].indices.push_back(1 + slices + (j+1)%slices);
+        rigid[0].indices.push_back(offset + 1 + slices + j);
+        rigid[0].indices.push_back(offset + 1 + (j+1)%slices);
+        rigid[0].indices.push_back(offset + 1 + slices + (j+1)%slices);
     }
 
+    offset = 2*slices;
+
+    //bottom of cylinder
 	for (int i = 0; i < slices; i++)
 	{
-		rigid[0].indices.push_back(1 + 2*slices);
-		rigid[0].indices.push_back(1 + slices + i);
-		rigid[0].indices.push_back(1 + slices + (i+1)%slices);
+		rigid[0].indices.push_back(offset + 1 + 2*slices);
+		rigid[0].indices.push_back(offset + 1 + slices + i);
+		rigid[0].indices.push_back(rigid[0].geometry.size() - 1);
 	}
 
 	// (left, right, bottom, top, front, back)
@@ -228,8 +347,8 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 	rigid.push_back(rigidhdl());
 
 
-	rigid[0].geometry.reserve(1 + slices);
-    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+	rigid[0].geometry.reserve(2 + 2*slices);
+    rigid[0].geometry.push_back(vec8f(0.0, height, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0));
 
     for (int j = 0; j < slices; ++j)
     {
@@ -240,7 +359,16 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
                     x, 0.0, z, 0.0, 0.0));
     }
 
-    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0));
+    for (int j = 0; j < slices; ++j)
+    {
+        float y = 0.0;
+        float x = radius*sin(j*2*m_pi/slices);
+        float z = radius*cos(j*2*m_pi/slices);
+        rigid[0].geometry.push_back(vec8f(x*radius, 0.0, z*radius,
+                    0.0, -1.0, 0.0, 0.0, 0.0));
+    }
+
+    rigid[0].geometry.push_back(vec8f(0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0));
 
 	for (int i = 0; i < slices; i++)
 	{
@@ -249,10 +377,12 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 		rigid[0].indices.push_back(0);
 	}
 
+    int offset = 1+slices;
+
 	for (int i = 0; i < slices; i++)
 	{
-		rigid[0].indices.push_back(1 + (i+1)%slices);
-		rigid[0].indices.push_back(1 + i);
+		rigid[0].indices.push_back(offset + 1 + (i+1)%slices);
+		rigid[0].indices.push_back(offset + 1 + i);
 		rigid[0].indices.push_back(rigid[0].geometry.size() - 1);
     }
 	

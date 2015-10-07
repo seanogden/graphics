@@ -77,7 +77,7 @@ void scenehdl::draw()
 
         if (render_normals)
         {
-            (*it)->draw_normals(canvas);
+            (*it)->draw_normals(canvas, (render_normals==face));
         }
     }
 

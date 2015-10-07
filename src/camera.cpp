@@ -25,12 +25,30 @@ camerahdl::~camerahdl()
 
 void camerahdl::view(canvashdl *canvas)
 {
-     canvas->set_matrix(canvashdl::modelview_matrix);
-     canvas->load_identity();
-     canvas->rotate(-orientation[0], vec3f(1, 0, 0));
-     canvas->rotate(-orientation[1], vec3f(0, 1, 0));
-     canvas->rotate(-orientation[2], vec3f(0, 0, 1));
-     canvas->translate(-position);
+
+        canvas->set_matrix(canvashdl::modelview_matrix);
+        canvas->load_identity();
+
+//void canvashdl::look_at(vec3f eye, vec3f at, vec3f up)
+    if (focus != NULL)
+    {
+        std::cout << orientation << std::endl;
+        vec3f up = ror3(vec3f(0.0, 1.0, 0.0), orientation);
+        vec3f pos = ror3(vec3f(0.0, 0.0, -radius), orientation);
+        //given radius, orientation, and focus->position to calculate
+        //camera position relative to focus->position, and feed to
+        //look_at
+        canvas->look_at(pos, focus->position, up);
+    }
+    else
+    {
+        canvas->rotate(-orientation[0], vec3f(1, 0, 0));
+        canvas->rotate(-orientation[1], vec3f(0, 1, 0));
+        canvas->rotate(-orientation[2], vec3f(0, 0, 1));
+        canvas->translate(-position);
+    }
+
+
 }
 
 orthohdl::orthohdl()
