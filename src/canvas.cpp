@@ -62,12 +62,12 @@ canvashdl::~canvashdl()
 
 void canvashdl::clear_color_buffer()
 {
-	memset(color_buffer, 0, width*height*3*sizeof(unsigned char));
+	memset(color_buffer, 0x00, width*height*3*sizeof(unsigned char));
 }
 
 void canvashdl::clear_depth_buffer()
 {
-	memset(depth_buffer, 255, width*height*sizeof(unsigned short));
+	memset(depth_buffer, 0xff, width*height*sizeof(unsigned short));
 }
 
 void canvashdl::reallocate(int w, int h)
@@ -257,17 +257,10 @@ void canvashdl::viewport(int left, int bottom, int right, int top)
  */
 void canvashdl::look_at(vec3f eye, vec3f at, vec3f up)
 {
-	// TODO Assignment 1: Emulate the functionality of gluLookAt
     vec3f f = norm(at - eye);
     vec3f UP = norm(up);
     vec3f s = cross(f, UP);
     vec3f u = cross(norm(s), f);
-
-    std::cout << eye << std::endl;
-    std::cout << at << std::endl;
-    std::cout << up << std::endl;
-    //std::cout << s << std::endl;
-    //std::cout << u << std::endl;
 
     mat4f M = mat4f( s[0],  s[1],  s[2], 0.0,
                      u[0],  u[1],  u[2], 0.0,
@@ -291,12 +284,12 @@ void canvashdl::update_normal_matrix()
 vec3f canvashdl::to_window(vec2i pixel)
 {
     vec2f w = vec2f(2.0, 2.0) * vec2f(pixel) / vec2f(width, height) - vec2f(1.0, 1.0);
-    return vec3f(w[0], -w[1], 1.0);
+    return vec3f(w[0], -w[1], 2.0);
 }
 
 vec3i canvashdl::to_pixel(vec3f p)
 {
-    return vec3i(vec3f(width, height, 1.0) * (p + vec3f(1.0, 1.0, 0.0))/vec3f(2.0, 2.0, 1.0));
+    return vec3i(vec3f(width, height, depth) * (p + vec3f(1.0, 1.0, 1.0))/vec3f(2.0, 2.0, 2.0));
 }
 
 
@@ -324,14 +317,14 @@ vec3f canvashdl::unproject(vec3f window)
  */
 vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
 {
-    vec4f vertex = vec4f(v[0], v[1], v[2], 1.0);
-    vertex = matrices[projection_matrix] * matrices[modelview_matrix] * vertex;
-    vertex = vertex/vertex[3];
+    vec4f eye_space_vertex = matrices[projection_matrix]*matrices[modelview_matrix]*homogenize(v);
+    eye_space_vertex /= eye_space_vertex[3];
+    
+    return eye_space_vertex;
 
 	/* TODO Assignment 3: Get the material from the list of uniform variables and
 	 * call its vertex shader.
 	 */
-	return vec3f(vertex[0], vertex[1], vertex[2]);
 }
 
 /* shade_fragment
@@ -363,19 +356,22 @@ inline vec3i translate_color(vec3f p)
 void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
     vec3i color = translate_color(shade_fragment(varying));
-    size_t offset = 3*(width*xyz[1] + xyz[0]);
+    size_t offset = (width*xyz[1] + xyz[0]);
 
-    if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height)
+    if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height && xyz[2] < depth_buffer[offset])
     { 
-        unsigned char* p = color_buffer + offset;
+        unsigned char* p = color_buffer + 3*offset;
         p[0] = (unsigned char)color[0];
         p[1] = (unsigned char)color[1];
         p[2] = (unsigned char)color[2];
 
+        depth_buffer[offset] = xyz[2];
     }
+
 	/* TODO Assignment 3: Compare the z value against the depth buffer and
 	 * only render if its less. Then set the depth buffer.
 	 */
+    
 }
 
 /* plot_point
@@ -466,7 +462,15 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
 
     for (i=0; i<=longest; ++i) 
     {
-        plot(vec3i(x,y,0), vector<float>());
+        //interpolate z
+        int z;
+        if (h != 0)
+            z = p1[2] + (p2[2]-p1[2])*(y-p1[1])/h; 
+        else if (w != 0)
+            z = p1[2] + (p2[2]-p1[2])*(x-p1[0])/w; 
+        else return; //points are the same!
+
+        plot(vec3i(x,y,z), vector<float>());
         
         //add shortest to numerator each time we increment in the long direction.
         numerator += shortest ;
@@ -487,13 +491,12 @@ void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<f
 
 void canvashdl::plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<float> varying)
 {
-    int inc = 1;
     int width = ABS(x1 - x2);
-    if (x2 < x1) inc = -1;
+    if (x2 < x1) std::swap(x1, x2);
 
     for (int i = 0; i < width; ++i)
     {
-        plot(vec3i(x1 + i, y, z1), varying);
+        plot(vec3i(x1 + i, y, /*z1*/ 0), varying);
     }
 }
 
@@ -506,14 +509,6 @@ void canvashdl::plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<fl
  */
 void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2, vector<float> v2_varying, vec3i s3, vector<float> v3_varying, vector<float> ave_varying)
 {
-	// TODO Assignment 2: Implement Bresenham's half triangle fill algorithm
-    // 1.  Find highest y-coordinate point. Call this A.
-    // 2.  Find middle y-coordinate point.  Call this B.
-    // 3.  Find intersection of horizontal line between middle y-coordinate point and line between other 2 points.  Call this C
-    // 4.  Draw lines from A to B and A to C simultaneously.
-    //     -When you move y coordinates, interrupt line drawing to call plot_line between current coordinates on each line.
-    //     -resume line drawing. 
-	// TODO Assignment 3: Interpolate the varying values before passing them into plot.
     int x1, y1, w1, h1, numerator1;
     int x2, y2, w2, h2, numerator2;
 
@@ -563,7 +558,15 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
     {
         for(;;)
         {
-            plot(vec3i(x1,y1,0), vector<float>());
+            int z1;
+            if (h1 != 0)
+                z1 = s1[2] + (s2[2]-s1[2])*(y1-s1[1])/h1; 
+            else if (w1 != 0)
+                z1 = s1[2] + (s2[2]-s1[2])*(x1-s1[0])/w1; 
+            else
+                z1 = s1[2];
+
+            plot(vec3i(x1,y1,z1), vector<float>());
 
             if (x1 == s2[0] && y1 == s2[1]) break;
 
@@ -590,7 +593,15 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
 
         for(;;)
         {
-            plot(vec3i(x2,y2,0), vector<float>());
+            int z2;
+            if (h2 != 0)
+                z2 = s1[2] + (s3[2]-s1[2])*(y2-s1[1])/h2; 
+            else if (w2 != 0)
+                z2 = s1[2] + (s3[2]-s1[2])*(x2-s1[0])/w2; 
+            else
+                z2 = s1[2];
+
+            plot(vec3i(x2,y2,z2), vector<float>());
 
             if (x2 == s3[0] && y2 == s3[1]) break;
 
@@ -614,7 +625,27 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
             }
         }
 
-        plot_horizontal(x1, x2, 0, 0, y2, vector<float>());
+        int z1;
+
+        if (h1 != 0)
+            z1 = s1[2] + (s2[2]-s1[2])*(y1-s1[1])/h1; 
+        else if (w1 != 0)
+            z1 = s1[2] + (s2[2]-s1[2])*(x1-s1[1])/w1; 
+        else
+            z1 = s1[2];
+
+
+        int z2;
+
+        if (h2 != 0)
+            z2 = s1[2] + (s3[2]-s1[2])*(y2-s1[1])/h2; 
+        else if (w2 != 0)
+            z2 = s1[2] + (s3[2]-s1[2])*(x2-s1[0])/w2; 
+        else
+            z2 = s1[2];
+
+
+        plot_horizontal(x1, x2, z1, z2, y2, vector<float>());
 
         if (x2 == s3[0] && y2 == s3[1] && x1 == s2[0] && y1 == s2[1]) break;
 
@@ -650,12 +681,21 @@ void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vect
 
         //Find intersection of horizontal line from v2 to line between v1 and v3
         float x4 = v1[0] + (v2[1] - v1[1])/(v3[1] - v1[1]) * (v3[0] - v1[0]);
-        vec3f v4(x4, v2[1], 0.0);
+        int z4 = v1[2] + (v3[2]-v1[2])*(v2[1]-v1[1])/(v3[1]-v1[1]); 
+        vec3f v4(x4, v2[1], z4);
+
+        vector<float> ave_varying;
+
+        for (int i = 0; i < v1_varying.size(); ++i)
+        {
+            ave_varying.push_back(float((v1_varying[i] + v2_varying[i] + v3_varying[i]) / 3.0));
+        }
+
 
         //plot half triangle v1, v2, v4
-        plot_half_triangle(to_pixel(v1), v1_varying, to_pixel(v2), v2_varying, to_pixel(v4), vector<float>(), vector<float>());
+        plot_half_triangle(to_pixel(v1), v1_varying, to_pixel(v2), v2_varying, to_pixel(v4), v3_varying, ave_varying);
         //plot half triangle v3, v2, v4
-        plot_half_triangle(to_pixel(v3), v3_varying, to_pixel(v2), v2_varying, to_pixel(v4), vector<float>(), vector<float>());
+        plot_half_triangle(to_pixel(v3), v3_varying, to_pixel(v2), v2_varying, to_pixel(v4), v3_varying, ave_varying);
     }
     else
     {
@@ -678,8 +718,27 @@ void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vect
 void canvashdl::draw_points(const vector<vec8f> &geometry)
 {
 
+    mat4f M = matrices[projection_matrix]*matrices[modelview_matrix];
+    //std::cout << M << std::endl;
+
     for (std::vector<vec8f>::const_iterator it = geometry.begin(); it != geometry.end(); ++it)
     {
+        vec8f v = *it;
+        //std::cout << dot(v, (M.row(3) + M.row(0))) << std::endl;
+        //clip left
+        if (dot(v, (M.col(3) + M.col(0))) > 0) std::cout << "Clipping left point " << v << std::endl;
+        //clip right
+        if (dot(v, (M.col(3) - M.col(0))) > 0) std::cout << "Clipping right point " << v << std::endl;
+        //clip bottom
+        //if (dot(v, (M.col(3) + M.col(1))) > 0) std::cout << "Clipping bottom point " << v << std::endl;
+        //clip top
+        //if (dot(v, (M.col(3) - M.col(1))) > 0) std::cout << "Clipping top point " << v << std::endl;
+        //clip near
+        //if (dot(v, M.col(3)) > 0) std::cout << "Clipping near point " << v << std::endl;
+        //clip far
+        //if (dot(v, (M.col(3) - M.col(2))) > 0) std::cout << "Clipping far point " << v << std::endl;
+
+
         std::vector<float> varying = std::vector<float>();
         vec8f p = shade_vertex(*it, varying);
         plot_point(p, varying);
@@ -724,21 +783,53 @@ void canvashdl::draw_lines(const vector<vec8f> &geometry, const vector<int> &ind
  */
 void canvashdl::draw_triangles(const vector<vec8f> &geometry, const vector<int> &indices)
 {
+    if (polygon_mode == point)
+    {
+        draw_points(geometry);
+        return;
+    }
 
     for (std::vector<int>::const_iterator it = indices.begin(); it != indices.end(); ++it)
     {
-        std::vector<float> v1 = std::vector<float>();
-        vec3f p1 = shade_vertex(geometry[*it], v1);
+        vec8f v1 = geometry[*it];
         ++it;
-        std::vector<float> v2 = std::vector<float>();
-        vec3f p2 = shade_vertex(geometry[*it], v2);
+        vec8f v2 = geometry[*it];
         ++it;
-        std::vector<float> v3 = std::vector<float>();
-        vec3f p3 = shade_vertex(geometry[*it], v3);
-        plot_triangle(p1, v1, p2, v2, p3, v3);
+        vec8f v3 = geometry[*it];
+
+        std::vector<float> varying1 = std::vector<float>();
+        std::vector<float> varying2 = std::vector<float>();
+        std::vector<float> varying3 = std::vector<float>();
+
+        //Clip
+        // TODO Assignment 2: Implement frustum clipping 
+        //Convert to window coordinates.
+        vec3f p1 = shade_vertex(v1, varying1);
+        vec3f p2 = shade_vertex(v2, varying2);
+        vec3f p3 = shade_vertex(v3, varying3);
+
+        vec3f normal_vector;
+        
+        //Cull
+        switch (culling)
+        {
+            //only compute normal vector if backface or front face.
+            case backface:
+                normal_vector = cross(p2-p1, p3-p1);
+                if (normal_vector[2] > 0)
+                    continue;  //just go to the next triangle if we have to cull
+                break;
+            case frontface:
+                normal_vector = cross(p2-p1, p3-p1);
+                if (normal_vector[2] < 0)
+                    continue;  //just go to the next triangle if we have to cull
+                break;
+        }
+
+        //If you made it here, I guess we can plot you.
+        plot_triangle(p1, varying1, p2, varying2, p3, varying3);
     }
 
-	// TODO Assignment 2: Implement frustum clipping and back-face culling
 	// TODO Assignment 3: Update the normal matrix.
 }
 

@@ -84,16 +84,20 @@ void displayfunc()
 	canvas.clear_color_buffer();
 	canvas.clear_depth_buffer();
 
-    //canvas.plot_triangle(vec3f(-0.5, 0.9, 0.0), std::vector<float>(), 
-    //                     vec3f( 0.0, 1.0, 0.0), std::vector<float>(), 
-    //                     vec3f( 1.0,-0.9, 0.0), std::vector<float>()); 
-    canvas.polygon_mode = canvashdl::fill;
-    canvas.plot_triangle(
-                              vec3f(-1.0, 0.0, 0.0), vector<float>(),
-                              vec3f(0.0, 1.0, 0.0), vector<float>(),
-                              vec3f(1.0, -1.0, 0), vector<float>());
+   // canvas.plot_triangle(
+   //                      vec3f( 0.843808, -0.769395, 0.37936), std::vector<float>(), 
+   //                      vec3f(-0.813087, -0.786593, 0.36185), std::vector<float>(), 
+   //                      vec3f(-0.774094,  0.847766, 0.394391), std::vector<float>()
+   //                      );
+    //canvas.polygon_mode = canvashdl::fill;
+    //canvas.plot_triangle(
+    //                          vec3f(-1.0, 0.0, 1.0), vector<float>(),
+    //                          vec3f(0.0, 1.0, -1.0), vector<float>(),
+    //                          vec3f(1.0, -1.0, -1.0), vector<float>());
                               
-	//scene.draw();
+    //canvas.plot_line(vec3f(-1.0,-1.0,-1.0), vector<float>(),
+    //                 vec3f(1.0, 1.0, 1.0), vector<float>());
+	scene.draw();
 
 	canvas.swap_buffers();
 }

@@ -32,7 +32,6 @@ void camerahdl::view(canvashdl *canvas)
 //void canvashdl::look_at(vec3f eye, vec3f at, vec3f up)
     if (focus != NULL)
     {
-        std::cout << orientation << std::endl;
         vec3f up = ror3(vec3f(0.0, 1.0, 0.0), orientation);
         vec3f pos = ror3(vec3f(0.0, 0.0, -radius), orientation);
         //given radius, orientation, and focus->position to calculate

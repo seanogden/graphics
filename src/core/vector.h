@@ -136,6 +136,17 @@ struct vec
 		return *this;
 	}
 
+    template <class t2>
+    bool operator>(vec<t2, s> v)
+    {
+        for (int i = 0; i < s; ++i)
+        {
+            if (data[i] <= v[i]) return false;
+        }
+
+        return true;
+    }
+
 	template <class t2>
 	vec<t, s> &operator*=(vec<t2, s> v)
 	{

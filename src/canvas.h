@@ -25,7 +25,7 @@ public:
 	unsigned char *color_buffer;
 	unsigned short *depth_buffer;
 	int width, height;
-	static const int depth = 65535;
+	static const int depth = 0xffff;
 	int reshape_width, reshape_height;
 	double last_reshape_time;
 	bool initialized;
