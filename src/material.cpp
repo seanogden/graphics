@@ -134,22 +134,50 @@ phonghdl::~phonghdl()
  */
 vec3f phonghdl::shade_vertex(canvashdl *canvas, vec3f vertex, vec3f normal, vector<float> &varying) const
 {
-	/* TODO Assignment 3: Implement phong shading, doing the same thing that you did to implement the gouraud
-	 * and flat. The difference is that the normals have been interpolated and passed into the fragment shader
-	 * instead of the color. The final color is calculated in the fragment shader.
-	 */
+    /*Just pass everything to the fragment shader */
+
+    for (int i = 0; i < 3; ++i)
+    {
+        varying.push_back(vertex[i]);
+    }
+    for (int i = 0; i < 3; ++i)
+    {
+        varying.push_back(normal[i]);
+    }
+
+    vec4f eye_space_vertex = canvas->matrices[canvashdl::modelview_matrix]*homogenize(vertex);
+    eye_space_vertex = canvas->matrices[canvashdl::projection_matrix]*eye_space_vertex;
+    return eye_space_vertex/eye_space_vertex[3];
 }
 
 vec3f phonghdl::shade_fragment(canvashdl *canvas, vector<float> &varying) const
 {
-	/* TODO Assignment 3: Implement phong shading, doing the same thing that you did to implement the gouraud
-	 * and flat. The difference is that the normals have been interpolated and passed into the fragment shader
-	 * instead of the color. The final color is calculated in the fragment shader.
-	 */
+	vec3f vertex(varying[0], varying[1], varying[2]);
+	vec3f normal(varying[3], varying[4], varying[5]);
 
+
+
+	const vector<lighthdl*> *lights;
+	canvas->get_uniform("lights", lights);
+
+	vec3f eye_space_vertex = canvas->matrices[canvashdl::modelview_matrix]*homogenize(vertex);
+	vec3f eye_space_normal = canvas->matrices[canvashdl::normal_matrix]*(vec4f)normal;
+    vec3f color, a, d, s;
+
+
+	if (mag2(normal) > 0.0)
+	{
+		eye_space_normal = norm(eye_space_normal);
+		for (std::vector<lighthdl*>::const_iterator it = lights->begin(); it != lights->end(); it++)
+        {
+            (*it)->shade(a, d, s, eye_space_vertex, eye_space_normal, shininess);
+        }
+		return clamp(emission + ambient*a + diffuse*d + specular*s, 0.0f, 1.0f);
+	}
+
+	varying.clear();
 	return vec3f(1.0, 1.0, 1.0);
 }
-
 materialhdl *phonghdl::clone() const
 {
 	phonghdl *result = new phonghdl();

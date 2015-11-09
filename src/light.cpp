@@ -111,6 +111,18 @@ void pointhdl::update(canvashdl *canvas)
 	 * The easiest thing is to do translations and rotations like you were going to render the object, and
 	 * then just multiply the origin by the modelview matrix.
 	 */
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(model->position);
+
+    canvas->rotate(model->orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(model->orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(model->orientation[2], vec3f(0, 0, 1));
+
+    vec4f pos_temp = canvas->matrices[canvashdl::modelview_matrix]*vec4f(0.0, 0.0, 0.0, 1.0);
+    position = pos_temp(0,3)/pos_temp[3];
+
+    canvas->matrices[canvas->active_matrix] = snapshot;
 }
 
 void pointhdl::shade(vec3f &ambient, vec3f &diffuse, vec3f &specular, vec3f vertex, vec3f normal, float shininess) const
@@ -118,6 +130,30 @@ void pointhdl::shade(vec3f &ambient, vec3f &diffuse, vec3f &specular, vec3f vert
 	/* TODO Assignment 3: Implement a point light. See the OpenGL Orange Book in the references section
 	 * of the course website. Its under the section about emulating the fixed function pipeline.
 	 */
+    float nDotVP, nDotHV, pf, d, atten;
+    vec3f vp = position - vertex;
+
+
+    d = mag(vp);
+    vp = norm(vp);
+    vec3f eye = norm(-vertex);
+    // Compute attenuation
+    atten = 1.0 / (attenuation[0] +
+                         attenuation[1] * d +
+                         attenuation[2] * d * d);
+    vec3f halfVector = norm(vp + eye);
+
+    nDotVP = max(0.0f, dot(normal, vp));
+    nDotHV = max(0.0f, dot(normal, halfVector));
+
+    if (nDotVP == 0.0)
+        pf = 0.0;
+    else
+        pf = pow(nDotHV, shininess);
+
+    ambient += this->ambient * attenuation;
+    diffuse += this->diffuse * nDotVP * atten;
+    specular += this->specular * pf * atten;
 }
 
 spothdl::spothdl() : lighthdl(white*0.1f, white*0.5f, white)
@@ -143,9 +179,24 @@ spothdl::~spothdl()
 
 void spothdl::update(canvashdl *canvas)
 {
-	/* TODO Assignment 3: Update both the direction and position of the light using the position and orientation
-	 * of the attached model. See above.
-	 */
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(model->position);
+
+    canvas->rotate(model->orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(model->orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(model->orientation[2], vec3f(0, 0, 1));
+
+    //update direction
+    canvas->update_normal_matrix();
+    direction = canvas->matrices[canvashdl::normal_matrix] * vec4f(0.0, 0.0, -1.0, 0.0);
+
+    //update position
+    vec4f pos_temp = canvas->matrices[canvashdl::modelview_matrix]*vec4f(0.0, 0.0, 0.0, 1.0);
+    position = pos_temp(0,3)/pos_temp[3];
+
+    canvas->matrices[canvas->active_matrix] = snapshot;
+
 }
 
 void spothdl::shade(vec3f &ambient, vec3f &diffuse, vec3f &specular, vec3f vertex, vec3f normal, float shininess) const
@@ -153,4 +204,41 @@ void spothdl::shade(vec3f &ambient, vec3f &diffuse, vec3f &specular, vec3f verte
 	/* TODO Assignment 3: Implement a spot light. See the OpenGL Orange Book in the references section
 	 * of the course website. Its under the section about emulating the fixed function pipeline.
 	 */
+    float nDotVP, nDotHV, pf, d, atten;
+    vec3f vp = position - vertex;
+
+
+    d = mag(vp);
+    vp = norm(vp);
+    vec3f eye = norm(-vertex);
+
+    // Compute attenuation
+    atten = 1.0 / (attenuation[0] +
+                         attenuation[1] * d +
+                         attenuation[2] * d * d);
+	float spotdot = dot(-vp, direction);
+    
+    float spotatt;
+
+	if (spotdot < cutoff)
+        spotatt = 0.0;
+    else
+		spotatt = pow(spotdot, exponent);
+
+
+	atten *= spotatt;
+
+    vec3f halfVector = norm(vp + eye);
+
+    nDotVP = max(0.0f, dot(normal, vp));
+    nDotHV = max(0.0f, dot(normal, halfVector));
+
+    if (nDotVP == 0.0)
+        pf = 0.0;
+    else
+        pf = pow(nDotHV, shininess);
+
+    ambient += this->ambient * attenuation;
+    diffuse += this->diffuse * nDotVP * atten;
+    specular += this->specular * pf * atten;
 }

@@ -447,9 +447,6 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
 	int D12 = 2*dv12[1-b12] - dv12[b12];
 	int D13 = 2*dv13[1-b13] - dv13[b13];
 
-	vector<float> varying_diff(v1_varying.size());
-
-
     plot(s1, v1_varying);
 
 	vec3i p12 = s1, p13 = s1;
@@ -491,15 +488,15 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
 		p12[2] = (int)((float)(s2[2] - s1[2])*interpolate12 + (float)s1[2]);
 		p13[2] = (int)((float)(s3[2] - s1[2])*interpolate13 + (float)s1[2]);
 
-        vector<float> varying12(v1_varying);
-        vector<float> varying13(v1_varying);
+        vector<float> v2(v1_varying);
+        vector<float> v3(v1_varying);
 
 		if (shade_model != flat)
 		{
 			for (int i = 0; i < v1_varying.size(); ++i)
 			{
-				varying12[i] += (v2_varying[i] - v1_varying[i])*interpolate12;
-				varying13[i] += (v3_varying[i] - v1_varying[i])*interpolate13;
+				v2[i] += (v2_varying[i] - v1_varying[i])*interpolate12;
+				v3[i] += (v3_varying[i] - v1_varying[i])*interpolate13;
 			}
 		}
 
@@ -509,7 +506,7 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
 		if (Ai[1] > Bi[1])
 		{
 			swap(Ai, Bi);
-			swap(varying12, varying13);
+			swap(v2, v3);
 		}
 
 		vec3i p = Ai;
@@ -526,14 +523,14 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
             {
 				for (int i = 0; i < v1_varying.size(); ++i)
                 {
-					ave_varying[i] = varying12[i] + (varying13[i] - varying12[i])*interpolateab;
+					ave_varying[i] = v2[i] + (v3[i] - v2[i])*interpolateab;
                 }
             }
 
 			plot(p, ave_varying);
 			interpolateab += increment;
 		}
-		plot(Bi, varying13);
+		plot(Bi, v3);
 	}
 }
 
