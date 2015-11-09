@@ -138,6 +138,9 @@ public:
 	void draw_points(const vector<vec8f> &geometry);
 	void draw_lines(const vector<vec8f> &geometry, const vector<int> &indices);
 	void draw_triangles(const vector<vec8f> &geometry, const vector<int> &indices);
+
+	vector<vec8f> clip_polygon(const vector<vec8f> &polygon, const vec4f &plane);
+	vector<vec8f> clip_line(const vector<vec8f> &line, const vec4f &plane);
 };
 
 #endif

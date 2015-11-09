@@ -86,7 +86,7 @@ boxhdl::boxhdl(float width, float height, float depth)
 
     bound = vec6f(-width/2.0, width/2.0, -height/2.0, height/2.0, -depth/2.0, depth/2.0);
 
-    // TODO Assignment 3: Set up the material properties for this object
+    material.insert(pair<string, materialhdl*>("default", new whitehdl()));
 }
 
 boxhdl::~boxhdl()
@@ -143,7 +143,7 @@ spherehdl::spherehdl(float radius, int levels, int slices)
 
     bound = vec6f(-radius, radius, -radius, radius, -radius, radius);
 
-    // TODO Assignment 3: Set up the material properties for this object
+    material.insert(pair<string, materialhdl*>("default", new whitehdl()));
 }
 
 spherehdl::~spherehdl()
@@ -217,7 +217,7 @@ cylinderhdl::cylinderhdl(float radius, float height, int slices)
 
     bound = vec6f(-radius, radius, -height/2.0, height/2.0, -radius, radius);
 
-    // TODO Assignment 3: Set up the material properties for this object
+    material.insert(pair<string, materialhdl*>("default", new whitehdl()));
 }
 
 cylinderhdl::~cylinderhdl()
@@ -274,7 +274,7 @@ pyramidhdl::pyramidhdl(float radius, float height, int slices)
 
     bound = vec6f(-radius, radius, -height/2.0, height/2.0, -radius, radius);
 
-    // TODO Assignment 3: Set up the material properties for this object
+    material.insert(pair<string, materialhdl*>("default", new whitehdl()));
 }
 
 pyramidhdl::~pyramidhdl()

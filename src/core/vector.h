@@ -38,6 +38,8 @@ struct vec
 {
 	vec()
 	{
+        for (int i = 0; i < s; i++)
+            data[i] = (t)0;
 	}
 
 	template <class t2>

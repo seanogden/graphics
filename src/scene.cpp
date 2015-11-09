@@ -28,27 +28,6 @@ scenehdl::~scenehdl()
 
 }
 
-
-bool scenehdl::is_camera(objecthdl* obj)
-{
-    for (vector<camerahdl*>::iterator camit = cameras.begin();
-            camit != cameras.end(); ++camit)
-    {
-        if (*camit != NULL && (*camit)->model == obj)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool scenehdl::is_active_camera(objecthdl* obj)
-{
-    return cameras[active_camera]->model == obj;
-}
-
-
 /* draw
  *
  * Update the locations of all of the lights, draw all of the objects, and
@@ -56,41 +35,39 @@ bool scenehdl::is_active_camera(objecthdl* obj)
  */
 void scenehdl::draw()
 {
-    cameras[active_camera]->project(canvas); 
-    cameras[active_camera]->view(canvas); 
+	canvas->uniform.clear();
+	canvas->uniform["lights"] = &lights;
 
-	for (vector<objecthdl*>::iterator it = objects.begin();
-         it != objects.end(); ++it)
-    {
+	if (active_camera_valid())
+		cameras[active_camera]->view(canvas);
 
-        if (!render_cameras && is_camera(*it))
-        {
-            continue;
-        }
+	for (int i = 0; i < lights.size(); i++)
+		lights[i]->update(canvas);
 
-        if (is_active_camera(*it))
-        {
-            continue;
-        }
+	for (int i = 0; i < objects.size(); i++)
+		if (objects[i] != NULL)
+		{
+			bool is_light = false;
+			bool is_camera = false;
+			for (int j = 0; j < lights.size() && !is_light; j++)
+				if (lights[j] != NULL && lights[j]->model == objects[i])
+					is_light = true;
 
-        (*it)->draw(canvas);
+			for (int j = 0; j < cameras.size() && !is_camera; j++)
+				if (cameras[j] != NULL && cameras[j]->model == objects[i])
+					is_camera = true;
 
-        if (render_normals)
-        {
-            (*it)->draw_normals(canvas, (render_normals==face));
-        }
-    }
+			if ((!is_light && !is_camera) || (is_light && render_lights) || (is_camera && render_cameras && (!active_camera_valid() || objects[i] != cameras[active_camera]->model)))
+			{
+				objects[i]->draw(canvas);
 
-    if (active_object_valid())
-    {
-        objects[active_object]->draw_bound(canvas);
-    } 
-   
-	/* TODO Assignment 3: Clear the uniform variables and pass the vector of
-	 * lights into the renderer as a uniform variable.
-	 * TODO Assignment 3: Update the light positions and directions
-	 * TODO Assignment 3: Render the lights
-	 */
+				if (render_normals == vertex || render_normals == face)
+					objects[i]->draw_normals(canvas, render_normals == face);
+
+				if (i == active_object)
+					objects[i]->draw_bound(canvas);
+			}
+		}
 }
 
 bool scenehdl::active_camera_valid()

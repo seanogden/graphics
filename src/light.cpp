@@ -9,6 +9,8 @@
 #include "object.h"
 #include "canvas.h"
 
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+
 lighthdl::lighthdl()
 {
 	model = NULL;
@@ -46,17 +48,44 @@ directionalhdl::~directionalhdl()
 
 void directionalhdl::update(canvashdl *canvas)
 {
-	/* TODO Assignment 3: Update the direction of the light using the orientation of the attached model.
-	 * The easiest thing is to do translations and rotations like you were going to render the object, and
-	 * then just multiply some initial direction vector by the normal matrix.
-	 */
+    canvas->set_matrix(canvashdl::modelview_matrix);
+    mat4f snapshot = canvas->matrices[canvas->active_matrix];
+    canvas->translate(model->position);
+
+    canvas->rotate(model->orientation[0], vec3f(1, 0, 0));
+    canvas->rotate(model->orientation[1], vec3f(0, 1, 0));
+    canvas->rotate(model->orientation[2], vec3f(0, 0, 1));
+
+    canvas->update_normal_matrix();
+    direction = canvas->matrices[canvashdl::normal_matrix] * vec4f(0.0, 0.0, -1.0, 0.0);
+    canvas->matrices[canvas->active_matrix] = snapshot;
 }
 
 void directionalhdl::shade(vec3f &ambient, vec3f &diffuse, vec3f &specular, vec3f vertex, vec3f normal, float shininess) const
 {
-	/* TODO Assignment 3: Implement a directional light. See the OpenGL Orange Book in the references section
-	 * of the course website. Its under the section about emulating the fixed function pipeline.
-	 */
+    /*  This code is mostly from the orange book. 
+        reconciling terms from our code to the book code, 
+        direction = location of the light source
+        vertex = vertex being shaded. 
+        */
+    float ndotvp, ndothv, pf;
+    vec3f vp = direction;
+    vec3f hv = norm(direction - vertex/mag(vertex)); // direction from light position to vertex being shaded
+    ndotvp = MAX(0.0, dot(normal, vp));
+    ndothv = MAX(0.0, dot(normal, hv));
+
+    if (ndotvp <= 0.0)
+    {
+        pf = 0.0;
+    }
+    else
+    {
+        pf = pow(ndothv, shininess);
+    }
+
+    ambient += this->ambient;
+    diffuse += this->diffuse*ndotvp;
+    specular += this->specular*pf;
 }
 
 pointhdl::pointhdl() : lighthdl(white*0.1f, white*0.5f, white)

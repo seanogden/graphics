@@ -9,9 +9,6 @@
 #include "core/geometry.h"
 #include "light.h"
 #include "material.h"
-#include <algorithm>
-
-#define ABS(X) ((X) < 0 ? -(X) : (X))
 
 canvashdl::canvashdl(int w, int h)
 {
@@ -40,7 +37,7 @@ canvashdl::canvashdl(int w, int h)
 	for (int i = 0; i < 4; i++)
 		matrices[i] = identity<float, 4, 4>();
 
-	polygon_mode = line;
+	polygon_mode = fill;
 	shade_model = smooth;
 	culling = backface;
 }
@@ -62,12 +59,12 @@ canvashdl::~canvashdl()
 
 void canvashdl::clear_color_buffer()
 {
-	memset(color_buffer, 0x00, width*height*3*sizeof(unsigned char));
+	memset(color_buffer, 0, width*height*3*sizeof(unsigned char));
 }
 
 void canvashdl::clear_depth_buffer()
 {
-	memset(depth_buffer, 0xff, width*height*sizeof(unsigned short));
+	memset(depth_buffer, 255, width*height*sizeof(unsigned short));
 }
 
 void canvashdl::reallocate(int w, int h)
@@ -106,7 +103,7 @@ void canvashdl::reallocate(int w, int h)
  */
 void canvashdl::set_matrix(matrix_id matid)
 {
-    active_matrix = matid;
+	active_matrix = matid;
 }
 
 /* load_identity
@@ -116,7 +113,7 @@ void canvashdl::set_matrix(matrix_id matid)
  */
 void canvashdl::load_identity()
 {
-    matrices[active_matrix] = identity<float, 4, 4>();
+	matrices[active_matrix] = identity<float, 4, 4>();
 }
 
 /* rotate
@@ -126,22 +123,18 @@ void canvashdl::load_identity()
  */
 void canvashdl::rotate(float angle, vec3f axis)
 {
-    float c = cos(angle);
-    float s = sin(angle);
-    float x = axis[0];
-    float y = axis[1];
-    float z = axis[2];
-    float x_2 = x*x;
-    float y_2 = y*y;
-    float z_2 = z*z;
-    
-    //Genereal rotation matrix is from the opengl glRotate documentation.
-    mat4f R = mat4f(x_2*(1-c)+c  , x*y*(1-c)-z*s, x*z*(1-c)+y*s, 0.0,
-                    y*x*(1-c)+z*s, y_2*(1-c)+c  , y*z*(1-c)-x*s, 0.0,
-                    x*z*(1-c)-y*s, y*z*(1-c)+x*s, z_2*(1-c)+c  , 0.0,
-                    0.0          , 0.0          , 0.0          , 1.0); 
+	vec3f u = norm(axis);
+	mat3f S(0.0, -u[2], u[1],
+			u[2], 0.0, -u[0],
+			-u[1], u[0], 0.0);
+	mat3f uut(axis[0]*axis[0], axis[0]*axis[1], axis[0]*axis[2],
+			  axis[0]*axis[1], axis[1]*axis[1], axis[1]*axis[2],
+			  axis[0]*axis[2], axis[1]*axis[2], axis[2]*axis[2]);
 
-    matrices[active_matrix] = matrices[active_matrix]*R;
+	mat4f R = identity<float, 4, 4>();
+	R.set(0,3,0,3, uut + (float)cos(angle)*(identity<float, 3, 3>() - uut) + (float)sin(angle)*S);
+
+	matrices[active_matrix] = matrices[active_matrix]*R;
 }
 
 /* translate
@@ -151,13 +144,10 @@ void canvashdl::rotate(float angle, vec3f axis)
  */
 void canvashdl::translate(vec3f direction)
 {
-    mat4f T = mat4f(1.0, 0.0, 0.0, direction[0],
-                    0.0, 1.0, 0.0, direction[1],
-                    0.0, 0.0, 1.0, direction[2],
-                    0.0, 0.0, 0.0, 1.0); 
-
-    //Genereal translation matrix is from the opengl glTranslate documentation.
-    matrices[active_matrix] = matrices[active_matrix]*T;
+	matrices[active_matrix] = matrices[active_matrix]*mat4f(1.0, 0.0, 0.0, direction[0],
+									 0.0, 1.0, 0.0, direction[1],
+									 0.0, 0.0, 1.0, direction[2],
+									 0.0, 0.0, 0.0, 1.0);
 }
 
 /* scale
@@ -167,13 +157,10 @@ void canvashdl::translate(vec3f direction)
  */
 void canvashdl::scale(vec3f size)
 {
-    mat4f T = mat4f(size[0], 0.0    , 0.0    , 0.0,
-                    0.0    , size[1], 0.0    , 0.0,
-                    0.0    , 0.0    , size[2], 0.0, 
-                    0.0    , 0.0    , 0.0    , 1.0); 
-
-    //Genereal translation matrix is from the opengl glTranslate documentation.
-    matrices[active_matrix] = matrices[active_matrix]*T;
+	matrices[active_matrix] = matrices[active_matrix]*mat4f(size[0], 0.0, 0.0, 0.0,
+									 0.0, size[1], 0.0, 0.0,
+									 0.0, 0.0, size[2], 0.0,
+									 0.0, 0.0, 0.0, 1.0);
 }
 
 /* perspective
@@ -183,17 +170,11 @@ void canvashdl::scale(vec3f size)
  */
 void canvashdl::perspective(float fovy, float aspect, float n, float f)
 {
-    float A = (f+n)/(n-f);
-    float B = 2*f*n/(n-f);
-    float g = 1.0/tan(fovy/2);
-
-    mat4f F = mat4f(g/aspect, 0.0, 0.0 , 0.0,
-                    0.0     , g  , 0.0 , 0.0,
-                    0.0     , 0.0, A   , B  , 
-                    0.0     , 0.0, -1.0, 1.0); 
-
-    //Genereal translation matrix is from the opengl glTranslate documentation.
-    matrices[active_matrix] = matrices[active_matrix]*F;
+	float x = tan(m_pi/2.0 - fovy/2);
+	matrices[active_matrix] = mat4f(x/aspect, 0.0, 0.0, 0.0,
+									0.0, x, 0.0, 0.0,
+									0.0, 0.0, -(f+n)/(f-n), -2.0*f*n/(f-n),
+									0.0, 0.0, -1.0, 0.0)*matrices[active_matrix];
 }
 
 /* frustum
@@ -203,18 +184,10 @@ void canvashdl::perspective(float fovy, float aspect, float n, float f)
  */
 void canvashdl::frustum(float l, float r, float b, float t, float n, float f)
 {
-    float A = (r + l)/(r-l);
-    float B = (t + b)/(t - b);
-    float C = -(f + n)/(f - n);
-    float D = -(2*f*n)/(f-n);
-
-    mat4f F = mat4f(2*n/(r-l), 0.0      , A   , 0.0,
-                    0.0      , 2*n/(t-b), B   , 0.0,
-                    0.0      , 0.0      , C   , D  , 
-                    0.0      , 0.0      , -1.0, 1.0); 
-
-    //Genereal translation matrix is from the opengl glTranslate documentation.
-    matrices[active_matrix] = matrices[active_matrix]*F;
+	matrices[active_matrix] = mat4f(2.0*n/(r - l), 0.0, (r + l)/(r - l), 0.0,
+								    0.0, 2.0*n/(t - b), (t + b)/(t - b), 0.0,
+								    0.0, 0.0, -(f + n)/(f - n), -2.0*f*n/(f - n),
+								    0.0, 0.0, -1.0, 0.0)*matrices[active_matrix];
 }
 
 /* ortho
@@ -224,19 +197,10 @@ void canvashdl::frustum(float l, float r, float b, float t, float n, float f)
  */
 void canvashdl::ortho(float l, float r, float b, float t, float n, float f)
 {
-    float tx = -(r + l)/(r - l);
-    float ty = -(t + b)/(t - b);
-    float tz = -(f + n)/(f - n);
-    float A  = 2/(r - l);
-    float B  = 2/(t - b);
-    float C  = -2/(f - n);
-
-    mat4f F = mat4f(A  , 0.0, 0.0, tx,
-                    0.0, B  , 0.0, ty,
-                    0.0, 0.0, C  , tz, 
-                    0.0, 0.0, 0.0, 1.0); 
-
-    matrices[active_matrix] = matrices[active_matrix]*F;
+	matrices[active_matrix] = mat4f(2.0/(r - l), 0.0, 0.0, -(r + l)/(r - l),
+						   0.0, 2.0/(t - b), 0.0, -(t + b)/(t - b),
+						   0.0, 0.0, -2.0/(f - n), -(f + n)/(f - n),
+						   0.0, 0.0, 0.0, 1.0)*matrices[active_matrix];
 }
 
 void canvashdl::viewport(int left, int bottom, int right, int top)
@@ -257,23 +221,20 @@ void canvashdl::viewport(int left, int bottom, int right, int top)
  */
 void canvashdl::look_at(vec3f eye, vec3f at, vec3f up)
 {
-    vec3f f = norm(at - eye);
-    vec3f UP = norm(up);
-    vec3f s = cross(f, UP);
-    vec3f u = cross(norm(s), f);
-
-    mat4f M = mat4f( s[0],  s[1],  s[2], 0.0,
-                     u[0],  u[1],  u[2], 0.0,
-                    -f[0], -f[1], -f[2], 0.0,
-                      0.0,   0.0,   0.0, 1.0);
-
-    matrices[active_matrix] = matrices[active_matrix] * M;
-    translate(-eye);
+	vec3f f = norm(at - eye);
+	up = norm(up);
+	vec3f s = cross(f, up);
+	vec3f u = cross(norm(s), f);
+	matrices[active_matrix] = mat4f(s[0], s[1], s[2], 0.0,
+									u[0], u[1], u[2], 0.0,
+									-f[0], -f[1], -f[2], 0.0,
+									0.0, 0.0, 0.0, 1.0)*matrices[active_matrix];
+	translate(-eye);
 }
 
 void canvashdl::update_normal_matrix()
 {
-	// TODO Assignment 3: calculate the normal matrix
+	matrices[normal_matrix] = transpose(inverse(matrices[modelview_matrix]));
 }
 
 /* to_window
@@ -283,15 +244,12 @@ void canvashdl::update_normal_matrix()
  */
 vec3f canvashdl::to_window(vec2i pixel)
 {
-    vec2f w = vec2f(2.0, 2.0) * vec2f(pixel) / vec2f(width, height) - vec2f(1.0, 1.0);
-    return vec3f(w[0], -w[1], 2.0);
-}
+	vec3f result(2.0*(float)pixel[0]/(float)(width-1) - 1.0,
+				 2.0*(float)(height - 1 - pixel[1])/(float)(height-1) - 1.0,
+				 1.04); // <-- I don't actually understand why I need this magic number... Seems strange to me... Shouldn't it be 1.0?
 
-vec3i canvashdl::to_pixel(vec3f p)
-{
-    return vec3i(vec3f(width, height, depth) * (p + vec3f(1.0, 1.0, 1.0))/vec3f(2.0, 2.0, 2.0));
+	return result;
 }
-
 
 /* unproject
  *
@@ -300,8 +258,7 @@ vec3i canvashdl::to_pixel(vec3f p)
  */
 vec3f canvashdl::unproject(vec3f window)
 {
-    return inverse(matrices[modelview_matrix])*
-           (inverse(matrices[projection_matrix]))*homogenize(window);
+	return inverse(matrices[modelview_matrix])*inverse(matrices[projection_matrix])*homogenize(window);
 }
 
 /* shade_vertex
@@ -317,14 +274,21 @@ vec3f canvashdl::unproject(vec3f window)
  */
 vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
 {
-    vec4f eye_space_vertex = matrices[projection_matrix]*matrices[modelview_matrix]*homogenize(v);
-    eye_space_vertex /= eye_space_vertex[3];
     
-    return eye_space_vertex;
+    const materialhdl *m;
+    get_uniform("material", m);
 
-	/* TODO Assignment 3: Get the material from the list of uniform variables and
-	 * call its vertex shader.
-	 */
+
+    if (m != NULL)
+    {
+        vec3f x = m->shade_vertex(this, v(0,3), v(3, 6), varying);
+        return x;
+    }
+
+    /* There might be null material, so we should pass default */
+    /* only construct whitehdl if we really need to */
+    whitehdl w;
+    return w.shade_vertex(this, v(0,3), v(3,6), varying);
 }
 
 /* shade_fragment
@@ -334,11 +298,19 @@ vec3f canvashdl::shade_vertex(vec8f v, vector<float> &varying)
  */
 vec3f canvashdl::shade_fragment(vector<float> varying)
 {
-	return white; //white!
+    //same as above but with shade fragment
+    const materialhdl *m;
+    get_uniform("material", m);
 
-	/* TODO Assignment 3: Get the material from the list of uniform variables and
-	 * call its fragment shader.
-	 */
+
+    if (m != NULL)
+        return m->shade_fragment(this, varying);
+
+    /* There might be null material, so we should pass default */
+    /* only construct whitehdl if we really need to */
+    whitehdl w;
+    return w.shade_fragment(this, varying);
+
 }
 
 /* Translates from fp to int color
@@ -355,23 +327,15 @@ inline vec3i translate_color(vec3f p)
  */
 void canvashdl::plot(vec3i xyz, vector<float> varying)
 {
-    vec3i color = translate_color(shade_fragment(varying));
-    size_t offset = (width*xyz[1] + xyz[0]);
-
-    if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height && xyz[2] < depth_buffer[offset])
-    { 
-        unsigned char* p = color_buffer + 3*offset;
-        p[0] = (unsigned char)color[0];
-        p[1] = (unsigned char)color[1];
-        p[2] = (unsigned char)color[2];
-
-        depth_buffer[offset] = xyz[2];
-    }
-
-	/* TODO Assignment 3: Compare the z value against the depth buffer and
-	 * only render if its less. Then set the depth buffer.
-	 */
-    
+	int idx = xyz[1]*width + xyz[0];
+	if (xyz[0] >= 0 && xyz[0] < width && xyz[1] >= 0 && xyz[1] < height && xyz[2] < depth_buffer[idx])
+	{
+		depth_buffer[idx] = xyz[2];
+		vec3f color = shade_fragment(varying);
+		color_buffer[idx*3 + 0] = (int)(color[0]*255.0);
+		color_buffer[idx*3 + 1] = (int)(color[1]*255.0);
+		color_buffer[idx*3 + 2] = (int)(color[2]*255.0);
+	}
 }
 
 /* plot_point
@@ -380,124 +344,80 @@ void canvashdl::plot(vec3i xyz, vector<float> varying)
  */
 void canvashdl::plot_point(vec3f v, vector<float> varying)
 {
-    plot(to_pixel(v), varying);
+	plot((vec3i)v, varying);
 }
 
-
+/* plot_line
+ *
+ * Plot a line defined by two points in window coordinates. Use Bresenham's
+ * Algorithm for this. Don't forget to interpolate the normals and texture
+ * coordinates as well.
+ */
 void canvashdl::plot_line(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying)
 {
-    //algorithm explained at http://tech-algorithm.com/articles/drawing-line-using-bresenham-algorithm/ 
-    int x, y, w, h, dx_shortest, dy_shortest, dx_longest, dy_longest, longest, shortest, i, numerator;
-    vec3i p1, p2;
-    p1 = to_pixel(v1);
-    p2 = to_pixel(v2);
+	vec3i s1 = (vec3i)v1;
+	vec3i s2 = (vec3i)v2;
 
-    w = p2[0] - p1[0];
-    h = p2[1] - p1[1];
-    x = p1[0];
-    y = p1[1];
-    
-    if (w < 0) 
+	int b = (abs(s2[1] - s1[1]) > abs(s2[0] - s1[0]));
+
+	vec2i dv = (vec2i)s2 - (vec2i)s1;
+
+	vec2i step((int)(dv[0] > 0) - (int)(dv[0] < 0),
+			   (int)(dv[1] > 0) - (int)(dv[1] < 0));
+	dv[0] *= step[0];
+	dv[1] *= step[1];
+
+	int D = 2*dv[1-b] - dv[b];
+
+    std::vector<float> varying(v1_varying.size());
+    if (shade_model != flat)
     {
-        //first point is right of second point, so x decreases
-        dx_shortest = -1;
-        dx_longest = -1;
-    }
-    else if (w > 0)
-    {
-        //first point is left of second point, so x increases
-        dx_shortest = 1;
-        dx_longest = 1;
+        varying = v1_varying;
     }
     else
     {
-        //Width = 0, this is a vertical line with no change in x.
-        dx_shortest = 0;
-        dx_longest = 0;
-    }
-
-    if (h < 0) 
-    {
-        //first point is higher than second point, so y decreases.
-        dy_shortest = -1;
-    }
-    else if (h > 0)
-    {
-        //first point is lower than second point, so y increases.
-        dy_shortest = 1;
-    }
-    else
-    {
-        //horizontal line, no change in y
-        dy_shortest = 0;
-    }
-
-    longest = ABS(w) ;
-    shortest = ABS(h) ;
-
-    if (longest < shortest) 
-    {
-        //line is steep (m > 0.5)
-        std::swap(longest, shortest);
-
-        //extra steps vertically for steep lines.
-        if (h < 0) 
+        for (int i = 0; i < v1_varying.size(); ++i)
         {
-            dy_longest = -1; 
-        }
-        else if (h > 0) 
-        {
-            dy_longest = 1;
-        }
-
-        //for steep lines, don't move horizontally until we've moved vertically a few times.
-        dx_longest = 0; 
-    }
-    else
-    {
-        dy_longest = 0;
-    }
-
-    numerator = longest / 2;
-
-    for (i=0; i<=longest; ++i) 
-    {
-        //interpolate z
-        int z;
-        if (h != 0)
-            z = p1[2] + (p2[2]-p1[2])*(y-p1[1])/h; 
-        else if (w != 0)
-            z = p1[2] + (p2[2]-p1[2])*(x-p1[0])/w; 
-        else return; //points are the same!
-
-        plot(vec3i(x,y,z), vector<float>());
-        
-        //add shortest to numerator each time we increment in the long direction.
-        numerator += shortest ;
-
-        if (numerator >= longest) {
-            //reset numerator when we've moved enough steps in the long direction. 
-            numerator -= longest ;
-            x += dx_shortest ;
-            y += dy_shortest ;
-        } 
-        else 
-        {
-            x += dx_longest ;
-            y += dy_longest ;
+            varying[i] = (v1_varying[i] + v2_varying[i])/2.0;
         }
     }
-}
+	plot(s1, varying);
 
-void canvashdl::plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<float> varying)
-{
-    int width = ABS(x1 - x2);
-    if (x2 < x1) std::swap(x1, x2);
+	vec3i p = s1;
+	float increment = (float)step[b]/(float)(s2[b] - s1[b]);
+	float interpolate = 0.0f;
+	float zdiff = v2[2] - v1[2];
+	p[b]+=step[b];
+	while (step[b]*p[b] < step[b]*s2[b])
+	{
+		if (D > 0)
+		{
+			p[1-b] += step[1-b];
+			D += 2*(dv[1-b] - dv[b]);
+		}
+		else
+			D += 2*dv[1-b];
 
-    for (int i = 0; i < width; ++i)
-    {
-        plot(vec3i(x1 + i, y, /*z1*/ 0), varying);
-    }
+		p[2] = (int)(zdiff*interpolate) + s1[2];
+
+        if (shade_model != flat)
+        {
+            for (int i = 0; i < varying.size(); ++i)
+            {
+                float inc = v2_varying[i] - v1_varying[i];
+                varying[i] = v1_varying[i] + inc * interpolate;
+            }
+
+            plot(p, varying);
+        }
+        else
+        {
+            plot(p, varying);
+        }
+     
+		p[b] += step[b];
+		interpolate += increment;
+	}
 }
 
 /* plot_half_triangle
@@ -509,149 +429,112 @@ void canvashdl::plot_horizontal(int x1, int x2, int z1, int z2, int y, vector<fl
  */
 void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2, vector<float> v2_varying, vec3i s3, vector<float> v3_varying, vector<float> ave_varying)
 {
-    int x1, y1, w1, h1, numerator1;
-    int x2, y2, w2, h2, numerator2;
+	int b12 = (abs(s2[1] - s1[1]) > abs(s2[0] - s1[0]));
+	int b13 = (abs(s1[1] - s3[1]) > abs(s1[0] - s3[0]));
 
-    w1 = s2[0] - s1[0];
-    h1 = s2[1] - s1[1];
-    x1 = s1[0];
-    y1 = s1[1];
- 
-    int dx_shortest1 = 0, dy_shortest1 = 0, dx_longest1 = 0, dy_longest1 = 0 ;
-    if (w1<0) dx_shortest1 = -1 ; else if (w1>0) dx_shortest1 = 1 ;
-    if (h1<0) dy_shortest1 = -1 ; else if (h1>0) dy_shortest1 = 1 ;
-    if (w1<0) dx_longest1 = -1 ; else if (w1>0) dx_longest1 = 1 ;
-    int longest1 = ABS(w1) ;
-    int shortest1 = ABS(h1) ;
+	vec2i dv12 = s2 - s1;
+	vec2i dv13 = s3 - s1;
 
-    if (!(longest1>shortest1)) {
-        longest1 = ABS(h1) ;
-        shortest1 = ABS(w1) ;
-        if (h1<0) dy_longest1 = -1 ; else if (h1>0) dy_longest1 = 1 ;
-        dx_longest1 = 0 ;            
-    }
+	vec2i step12, step13;
+	for (int i = 0; i < 2; i++)
+	{
+		step12[i] = (int)(dv12[i] > 0) - (int)(dv12[i] < 0);
+		dv12[i] *= step12[i];
+		step13[i] = (int)(dv13[i] > 0) - (int)(dv13[i] < 0);
+		dv13[i] *= step13[i];
+	}
 
-    numerator1 = longest1 / 2;
+	int D12 = 2*dv12[1-b12] - dv12[b12];
+	int D13 = 2*dv13[1-b13] - dv13[b13];
 
-    w2 = s3[0] - s1[0];
-    h2 = s3[1] - s1[1];
-    x2 = s1[0];
-    y2 = s1[1];
+	vector<float> varying_diff(v1_varying.size());
 
-    int dx_shortest2 = 0, dy_shortest2 = 0, dx_longest2 = 0, dy_longest2 = 0 ;
-    if (w2<0) dx_shortest2 = -1 ; else if (w2>0) dx_shortest2 = 1 ;
-    if (h2<0) dy_shortest2 = -1 ; else if (h2>0) dy_shortest2 = 1 ;
-    if (w2<0) dx_longest2 = -1 ; else if (w2>0) dx_longest2 = 1 ;
-    int longest2 = ABS(w2) ;
-    int shortest2 = ABS(h2) ;
 
-    if (!(longest2>shortest2)) {
-        longest2 = ABS(h2) ;
-        shortest2 = ABS(w2) ;
-        if (h2<0) dy_longest2 = -1 ; else if (h2>0) dy_longest2 = 1 ;
-        dx_longest2 = 0 ;            
-    }
+    plot(s1, v1_varying);
 
-    numerator2 = longest2 / 2;
+	vec3i p12 = s1, p13 = s1;
+	float increment12 = (float)step12[b12]/(float)(s2[b12] - s1[b12]);
+	float increment13 = (float)step13[b13]/(float)(s3[b13] - s1[b13]);
+	float interpolate12 = 0.0f;
+	float interpolate13 = 0.0f;
+	while (step12[b12] != 0 && step13[b13] != 0 && step12[b12]*p12[b12] < step12[b12]*s2[b12] && step13[b13]*p13[b13] < step13[b13]*s3[b13])
+	{
+		vec2i old = p12;
+		do
+		{
+			if (D12 > 0)
+			{
+				p12[1-b12] += step12[1-b12];
+				D12 += 2*(dv12[1-b12] - dv12[b12]);
+			}
+			else
+				D12 += 2*dv12[1-b12];
 
-    for(;;)
-    {
-        for(;;)
-        {
-            int z1;
-            if (h1 != 0)
-                z1 = s1[2] + (s2[2]-s1[2])*(y1-s1[1])/h1; 
-            else if (w1 != 0)
-                z1 = s1[2] + (s2[2]-s1[2])*(x1-s1[0])/w1; 
-            else
-                z1 = s1[2];
+			p12[b12] += step12[b12];
+			interpolate12 += increment12;
+		} while ((step12[b12] != 0 || step12[1-b12] != 0) && (vec2i)p12 == old && step12[b12]*p12[b12] < step12[b12]*s2[b12]);
 
-            plot(vec3i(x1,y1,z1), vector<float>());
+		while ((step13[b13] != 0 || step13[1-b13] != 0) && p13[0] != p12[0] && step13[b13]*p13[b13] < step13[b13]*s3[b13])
+		{
+			p13[b13] += step13[b13];
+			interpolate13 += increment13;
 
-            if (x1 == s2[0] && y1 == s2[1]) break;
+			if (D13 > 0)
+			{
+				p13[1-b13] += step13[1-b13];
+				D13 += 2*(dv13[1-b13] - dv13[b13]);
+			}
+			else
+				D13 += 2*dv13[1-b13];
+		}
 
-            //add shortest to numerator each time we increment in the long direction.
-            numerator1 += shortest1 ;
+		p12[2] = (int)((float)(s2[2] - s1[2])*interpolate12 + (float)s1[2]);
+		p13[2] = (int)((float)(s3[2] - s1[2])*interpolate13 + (float)s1[2]);
 
-            if (numerator1 >= longest1) {
-                //reset numerator when we've moved enough steps in the long direction. 
-                numerator1 -= longest1 ;
-                x1 += dx_shortest1 ;
-                y1 += dy_shortest1 ;
+        vector<float> varying12(v1_varying);
+        vector<float> varying13(v1_varying);
 
-                if (dy_shortest1 != 0) break;
-            } 
-            else 
+		if (shade_model != flat)
+		{
+			for (int i = 0; i < v1_varying.size(); ++i)
+			{
+				varying12[i] += (v2_varying[i] - v1_varying[i])*interpolate12;
+				varying13[i] += (v3_varying[i] - v1_varying[i])*interpolate13;
+			}
+		}
+
+		vec3i Ai = p12;
+		vec3i Bi = p13;
+
+		if (Ai[1] > Bi[1])
+		{
+			swap(Ai, Bi);
+			swap(varying12, varying13);
+		}
+
+		vec3i p = Ai;
+		float increment = 1.0f/(float)(Bi[1] - Ai[1]);
+		float interpolateab = 0.0f;
+
+		float zdiff = (float)(Bi[2] - Ai[2]);
+
+		for (; p[1] < Bi[1]; p[1]++)
+		{
+			p[2] = (int)(zdiff*interpolateab) + Ai[2];
+
+			if (shade_model != flat)
             {
-                x1 += dx_longest1 ;
-                y1 += dy_longest1 ;
-
-                if (dy_longest1 != 0) break;
+				for (int i = 0; i < v1_varying.size(); ++i)
+                {
+					ave_varying[i] = varying12[i] + (varying13[i] - varying12[i])*interpolateab;
+                }
             }
-        }
 
-
-        for(;;)
-        {
-            int z2;
-            if (h2 != 0)
-                z2 = s1[2] + (s3[2]-s1[2])*(y2-s1[1])/h2; 
-            else if (w2 != 0)
-                z2 = s1[2] + (s3[2]-s1[2])*(x2-s1[0])/w2; 
-            else
-                z2 = s1[2];
-
-            plot(vec3i(x2,y2,z2), vector<float>());
-
-            if (x2 == s3[0] && y2 == s3[1]) break;
-
-            //add shortest to numerator each time we increment in the long direction.
-            numerator2 += shortest2 ;
-
-            if (numerator2 >= longest2) {
-                //reset numerator when we've moved enough steps in the long direction. 
-                numerator2 -= longest2 ;
-                x2 += dx_shortest2 ;
-                y2 += dy_shortest2 ;
-
-                if (dy_shortest2 != 0) break;
-            } 
-            else 
-            {
-                x2 += dx_longest2 ;
-                y2 += dy_longest2 ;
-
-                if (dy_longest2 != 0) break;
-            }
-        }
-
-        int z1;
-
-        if (h1 != 0)
-            z1 = s1[2] + (s2[2]-s1[2])*(y1-s1[1])/h1; 
-        else if (w1 != 0)
-            z1 = s1[2] + (s2[2]-s1[2])*(x1-s1[1])/w1; 
-        else
-            z1 = s1[2];
-
-
-        int z2;
-
-        if (h2 != 0)
-            z2 = s1[2] + (s3[2]-s1[2])*(y2-s1[1])/h2; 
-        else if (w2 != 0)
-            z2 = s1[2] + (s3[2]-s1[2])*(x2-s1[0])/w2; 
-        else
-            z2 = s1[2];
-
-
-        plot_horizontal(x1, x2, z1, z2, y2, vector<float>());
-
-        if (x2 == s3[0] && y2 == s3[1] && x1 == s2[0] && y1 == s2[1]) break;
-
-    }
-
-
+			plot(p, ave_varying);
+			interpolateab += increment;
+		}
+		plot(Bi, varying13);
+	}
 }
 
 /* plot_triangle
@@ -663,48 +546,48 @@ void canvashdl::plot_half_triangle(vec3i s1, vector<float> v1_varying, vec3i s2,
  */
 void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vector<float> v2_varying, vec3f v3, vector<float> v3_varying)
 {
-    if (polygon_mode == line)
-    {
-        plot_line(v1, v1_varying, v2, v2_varying);
-        plot_line(v2, v2_varying, v3, v3_varying);
-        plot_line(v3, v3_varying, v1, v1_varying);
-    }
-    else if (polygon_mode == fill)
-    {
-        //Sort the vertices in order of y coordinate
-        if (v1[1] > v2[1])
-            swap(v1,v2);
-        if (v2[1] > v3[1])
-            swap(v2,v3);
-        if (v1[1] > v2[1])
-            swap(v1,v2);
+	if (polygon_mode == point)
+	{
+		plot_point(v1, v1_varying);
+		plot_point(v2, v2_varying);
+		plot_point(v3, v3_varying);
+	}
+	else if (polygon_mode == line)
+	{
+		plot_line(v1, v1_varying, v2, v2_varying);
+		plot_line(v2, v2_varying, v3, v3_varying);
+		plot_line(v3, v3_varying, v1, v1_varying);
+	}
+	else if (polygon_mode == fill)
+	{
+		plot_line(v1, v1_varying, v2, v2_varying);
+		plot_line(v2, v2_varying, v3, v3_varying);
+		plot_line(v3, v3_varying, v1, v1_varying);
 
-        //Find intersection of horizontal line from v2 to line between v1 and v3
-        float x4 = v1[0] + (v2[1] - v1[1])/(v3[1] - v1[1]) * (v3[0] - v1[0]);
-        int z4 = v1[2] + (v3[2]-v1[2])*(v2[1]-v1[1])/(v3[1]-v1[1]); 
-        vec3f v4(x4, v2[1], z4);
+		if (v1[0] > v2[0])
+		{
+			swap(v1, v2);
+			swap(v1_varying, v2_varying);
+		}
+		if (v1[0] > v3[0])
+		{
+			swap(v1, v3);
+			swap(v1_varying, v3_varying);
+		}
+		if (v2[0] > v3[0])
+		{
+			swap(v2, v3);
+			swap(v2_varying, v3_varying);
+		}
 
-        vector<float> ave_varying;
+		vector<float> ave_varying(v1_varying.size());
 
-        for (int i = 0; i < v1_varying.size(); ++i)
-        {
-            ave_varying.push_back(float((v1_varying[i] + v2_varying[i] + v3_varying[i]) / 3.0));
-        }
+		for (int i = 0; i < (int)v1_varying.size(); i++)
+			ave_varying[i] = (v1_varying[i] + v2_varying[i] + v3_varying[i])/3.0f;
 
-
-        //plot half triangle v1, v2, v4
-        plot_half_triangle(to_pixel(v1), v1_varying, to_pixel(v2), v2_varying, to_pixel(v4), v3_varying, ave_varying);
-        //plot half triangle v3, v2, v4
-        plot_half_triangle(to_pixel(v3), v3_varying, to_pixel(v2), v2_varying, to_pixel(v4), v3_varying, ave_varying);
-    }
-    else
-    {
-        plot_point(v1, v1_varying);
-        plot_point(v2, v2_varying);
-        plot_point(v3, v3_varying);
-    }
-
-	// TODO Assignment 2: Calculate the average varying vector for flat shading and call plot_half_triangle as needed.
+		plot_half_triangle((vec3i)v1, v1_varying, (vec3i)v2, v2_varying, (vec3i)v3, v3_varying, ave_varying);
+		plot_half_triangle((vec3i)v3, v3_varying, (vec3i)v1, v1_varying, (vec3i)v2, v2_varying, ave_varying);
+	}
 }
 
 /* draw_points
@@ -717,35 +600,32 @@ void canvashdl::plot_triangle(vec3f v1, vector<float> v1_varying, vec3f v2, vect
  */
 void canvashdl::draw_points(const vector<vec8f> &geometry)
 {
+	update_normal_matrix();
+	mat4f transform = matrices[projection_matrix]*matrices[modelview_matrix];
+	vec4f planes[6];
+	for (int i = 0; i < 6; i++)
+		planes[i] = transform.row(3) + (float)pow(-1.0, i)*(vec4f)transform.row(i/2);
 
-    mat4f M = matrices[projection_matrix]*matrices[modelview_matrix];
-    //std::cout << M << std::endl;
+	vector<pair<vec3f, vector<float> > > processed_geometry;
+	processed_geometry.reserve(geometry.size());
 
-    for (std::vector<vec8f>::const_iterator it = geometry.begin(); it != geometry.end(); ++it)
-    {
-        vec8f v = *it;
-        //std::cout << dot(v, (M.row(3) + M.row(0))) << std::endl;
-        //clip left
-        if (dot(v, (M.col(3) + M.col(0))) > 0) std::cout << "Clipping left point " << v << std::endl;
-        //clip right
-        if (dot(v, (M.col(3) - M.col(0))) > 0) std::cout << "Clipping right point " << v << std::endl;
-        //clip bottom
-        //if (dot(v, (M.col(3) + M.col(1))) > 0) std::cout << "Clipping bottom point " << v << std::endl;
-        //clip top
-        //if (dot(v, (M.col(3) - M.col(1))) > 0) std::cout << "Clipping top point " << v << std::endl;
-        //clip near
-        //if (dot(v, M.col(3)) > 0) std::cout << "Clipping near point " << v << std::endl;
-        //clip far
-        //if (dot(v, (M.col(3) - M.col(2))) > 0) std::cout << "Clipping far point " << v << std::endl;
+	for (int i = 0; i < geometry.size(); i += 3)
+	{
+		bool keep = true;
+		for (int j = 0; j < 6 && keep; j++)
+			if (dot(homogenize((vec3f)geometry[i]), planes[j]) <= 0)
+				keep = false;
 
+		if (keep)
+		{
+			vector<float> varying;
+			vec3f position = matrices[viewport_matrix]*homogenize(shade_vertex(geometry[i], varying));
+			processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+		}
+	}
 
-        std::vector<float> varying = std::vector<float>();
-        vec8f p = shade_vertex(*it, varying);
-        plot_point(p, varying);
-    }
-
-	// TODO Assignment 2: Implement frustum clipping and back-face culling
-	// TODO Assignment 3: Update the normal matrix.
+	for (int i = 0; i < processed_geometry.size(); i++)
+		plot_point(processed_geometry[i].first, processed_geometry[i].second);
 }
 
 /* draw_lines
@@ -758,23 +638,94 @@ void canvashdl::draw_points(const vector<vec8f> &geometry)
  */
 void canvashdl::draw_lines(const vector<vec8f> &geometry, const vector<int> &indices)
 {
+	update_normal_matrix();
+	mat4f transform = matrices[projection_matrix]*matrices[modelview_matrix];
+	vec4f planes[6];
+	for (int i = 0; i < 6; i++)
+		planes[i] = transform.row(3) + (float)pow(-1.0, i)*(vec4f)transform.row(i/2);
 
-    for (std::vector<int>::const_iterator it = indices.begin(); it != indices.end(); ++it)
-    {
-        std::vector<float> v1 = std::vector<float>();
-        vec3f p1 = shade_vertex(geometry[*it], v1);
-        ++it;
-        std::vector<float> v2 = std::vector<float>();
-        vec3f p2 = shade_vertex(geometry[*it], v2);
-        plot_line(p1, v1, p2, v2);
-    }
+	vector<pair<vec3f, vector<float> > > processed_geometry;
+	vector<int> processed_indices;
+	processed_geometry.reserve(geometry.size());
+	processed_indices.reserve(indices.size());
+	vector<int> index_map;
+	index_map.resize(geometry.size(), -1);
 
-	// TODO Assignment 2: Implement frustum clipping and back-face culling
-	// TODO Assignment 3: Update the normal matrix.
+	for (int i = 0; i < indices.size(); i += 2)
+	{
+		pair<vec8f, int> x0 = pair<vec8f, int>(geometry[indices[i]], indices[i]);
+		pair<vec8f, int> x1 = pair<vec8f, int>(geometry[indices[i+1]], indices[i+1]);
+		bool keep = true;
+
+		for (int j = 0; j < 6 && keep; j++)
+		{
+			float d0 = dot(homogenize(x0.first), planes[j]);
+			float d1 = dot(homogenize(x1.first), planes[j]);
+			float del = dot(homogenize(x1.first) - homogenize(x0.first), planes[j]);
+			float p = -d0/del;
+
+			if (d0 > 0.0 && d1 <= 0.0)
+			{
+				x1.first = (1-p)*x0.first + p*x1.first;
+				x1.second = -1;
+			}
+			else if (d0 <= 0.0 && d1 > 0.0)
+			{
+				x0.first = (1-p)*x0.first + p*x1.first;
+				x0.second = -1;
+			}
+			else if (d0 <= 0.0 && d1 <= 0.0)
+				keep = false;
+		}
+
+		if (keep)
+		{
+			vector<float> varying;
+			vec3f position;
+			if (x0.second == -1)
+			{
+				x0.second = processed_geometry.size();
+				position = matrices[viewport_matrix]*homogenize(shade_vertex(x0.first, varying));
+				processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+			}
+			else if (index_map[x0.second] == -1)
+			{
+				index_map[x0.second] = processed_geometry.size();
+				x0.second = processed_geometry.size();
+				position = matrices[viewport_matrix]*homogenize(shade_vertex(x0.first, varying));
+				processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+			}
+			else
+				x0.second = index_map[x0.second];
+
+			if (x1.second == -1)
+			{
+				x1.second = processed_geometry.size();
+				position = matrices[viewport_matrix]*homogenize(shade_vertex(x1.first, varying));
+				processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+			}
+			else if (index_map[x1.second] == -1)
+			{
+				index_map[x1.second] = processed_geometry.size();
+				x1.second = processed_geometry.size();
+				position = matrices[viewport_matrix]*homogenize(shade_vertex(x1.first, varying));
+				processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+			}
+			else
+				x1.second = index_map[x1.second];
+
+			processed_indices.push_back(x0.second);
+			processed_indices.push_back(x1.second);
+		}
+	}
+
+	for (int i = 1; i < processed_indices.size(); i+=2)
+		plot_line(processed_geometry[processed_indices[i-1]].first, processed_geometry[processed_indices[i-1]].second,
+				  processed_geometry[processed_indices[i]].first, processed_geometry[processed_indices[i]].second);
 }
 
 /* draw_triangles
- * 
+ *
  * Draw a set of 3D triangles on the canvas. Each point in geometry is
  * formatted (vx, vy, vz, nx, ny, nz, s, t). Don't forget to clip the
  * triangles against the clipping planes of the projection. You can't
@@ -783,54 +734,103 @@ void canvashdl::draw_lines(const vector<vec8f> &geometry, const vector<int> &ind
  */
 void canvashdl::draw_triangles(const vector<vec8f> &geometry, const vector<int> &indices)
 {
-    if (polygon_mode == point)
-    {
-        draw_points(geometry);
-        return;
-    }
+	update_normal_matrix();
+	mat4f transform = matrices[projection_matrix]*matrices[modelview_matrix];
+	vec4f planes[6];
+	for (int i = 0; i < 6; i++)
+		planes[i] = transform.row(3) + (float)pow(-1.0, i)*(vec4f)transform.row(i/2);
+	vec3f eye = matrices[modelview_matrix].col(3)(0,3);
 
-    for (std::vector<int>::const_iterator it = indices.begin(); it != indices.end(); ++it)
-    {
-        vec8f v1 = geometry[*it];
-        ++it;
-        vec8f v2 = geometry[*it];
-        ++it;
-        vec8f v3 = geometry[*it];
+	vector<pair<vec3f, vector<float> > > processed_geometry;
+	vector<int> processed_indices;
+	processed_geometry.reserve(geometry.size());
+	processed_indices.reserve(indices.size());
+	vector<int> index_map;
+	index_map.resize(geometry.size(), -1);
 
-        std::vector<float> varying1 = std::vector<float>();
-        std::vector<float> varying2 = std::vector<float>();
-        std::vector<float> varying3 = std::vector<float>();
+	for (int i = 0; i < indices.size(); i += 3)
+	{
+		vector<pair<vec8f, int> > polygon;
+		for (int j = 0; j < 3; j++)
+			polygon.push_back(pair<vec8f, int>(geometry[indices[i+j]], indices[i+j]));
 
-        //Clip
-        // TODO Assignment 2: Implement frustum clipping 
-        //Convert to window coordinates.
-        vec3f p1 = shade_vertex(v1, varying1);
-        vec3f p2 = shade_vertex(v2, varying2);
-        vec3f p3 = shade_vertex(v3, varying3);
+		vector<pair<vec8f, int> > clipped;
+		for (int j = 0; j < 6; j++)
+		{
+			pair<vec8f, int> x0 = polygon[polygon.size()-1];
+			float d0 = dot(homogenize(x0.first), planes[j]);
+			for (int k = 0; k < polygon.size(); k++)
+			{
+				pair<vec8f, int> x1 = polygon[k];
+				float d1 = dot(homogenize(x1.first), planes[j]);
+				float del = dot(homogenize(x1.first) - homogenize(x0.first), planes[j]);
+				float p = -d0/del;
 
-        vec3f normal_vector;
-        
-        //Cull
-        switch (culling)
-        {
-            //only compute normal vector if backface or front face.
-            case backface:
-                normal_vector = cross(p2-p1, p3-p1);
-                if (normal_vector[2] > 0)
-                    continue;  //just go to the next triangle if we have to cull
-                break;
-            case frontface:
-                normal_vector = cross(p2-p1, p3-p1);
-                if (normal_vector[2] < 0)
-                    continue;  //just go to the next triangle if we have to cull
-                break;
-        }
+				if (d0 >= 0.0 && d1 >= 0.0)
+					clipped.push_back(x1);
+				else if (d0 >= 0.0 && d1 < 0.0)
+					clipped.push_back(pair<vec8f, int>((1-(p+0.001f))*x0.first + (p+0.001f)*x1.first, -1));
+				else if (d0 < 0.0 && d1 >= 0.0)
+				{
+					clipped.push_back(pair<vec8f, int>((1-(p-0.001f))*x0.first + (p-0.001f)*x1.first, -1));
+					clipped.push_back(x1);
+				}
 
-        //If you made it here, I guess we can plot you.
-        plot_triangle(p1, varying1, p2, varying2, p3, varying3);
-    }
+				x0 = x1;
+				d0 = d1;
+			}
 
-	// TODO Assignment 3: Update the normal matrix.
+			polygon = clipped;
+			clipped.clear();
+		}
+
+		if (polygon.size() > 2)
+		{
+			for (int i = 0; i < polygon.size(); i++)
+			{
+				vector<float> varying;
+				vec3f position;
+				if (polygon[i].second == -1)
+				{
+					polygon[i].second = processed_geometry.size();
+					position = matrices[viewport_matrix]*homogenize(shade_vertex(polygon[i].first, varying));
+					polygon[i].first = position;
+					processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+				}
+				else if (index_map[polygon[i].second] == -1)
+				{
+					index_map[polygon[i].second] = processed_geometry.size();
+					polygon[i].second = processed_geometry.size();
+					position = matrices[viewport_matrix]*homogenize(shade_vertex(polygon[i].first, varying));
+					polygon[i].first = position;
+					processed_geometry.push_back(pair<vec3f, vector<float> >(position, varying));
+				}
+				else
+				{
+					polygon[i].second = index_map[polygon[i].second];
+					polygon[i].first = processed_geometry[polygon[i].second].first;
+				}
+			}
+
+			for (int i = 2; i < polygon.size(); i++)
+			{
+				vec3f normal = cross(norm((vec3f)polygon[0].first - (vec3f)polygon[i-1].first),
+								     norm((vec3f)polygon[i].first - (vec3f)polygon[i-1].first));
+
+				if (culling == disable || (normal[2] >= 0.0 && culling == backface) || (normal[2] <= 0.0 && culling == frontface))
+				{
+					processed_indices.push_back(polygon[0].second);
+					processed_indices.push_back(polygon[i-1].second);
+					processed_indices.push_back(polygon[i].second);
+				}
+			}
+		}
+	}
+
+	for (int i = 2; i < processed_indices.size(); i+=3)
+		plot_triangle(processed_geometry[processed_indices[i-2]].first, processed_geometry[processed_indices[i-2]].second,
+					  processed_geometry[processed_indices[i-1]].first, processed_geometry[processed_indices[i-1]].second,
+					  processed_geometry[processed_indices[i]].first, processed_geometry[processed_indices[i]].second);
 }
 
 

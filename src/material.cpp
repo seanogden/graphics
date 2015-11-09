@@ -30,7 +30,9 @@ whitehdl::~whitehdl()
 
 vec3f whitehdl::shade_vertex(canvashdl *canvas, vec3f vertex, vec3f normal, vector<float> &varying) const
 {
-	// TODO Assignment 3: Move your solid color shader from the canvas to here.
+    vec4f eye_space_vertex =    canvas->matrices[canvashdl::projection_matrix]*canvas->matrices[canvashdl::modelview_matrix]*homogenize(vertex);
+    eye_space_vertex /= eye_space_vertex[3];
+    return eye_space_vertex;
 }
 
 vec3f whitehdl::shade_fragment(canvashdl *canvas, vector<float> &varying) const
@@ -66,18 +68,37 @@ gouraudhdl::~gouraudhdl()
  */
 vec3f gouraudhdl::shade_vertex(canvashdl *canvas, vec3f vertex, vec3f normal, vector<float> &varying) const
 {
-	/* TODO Assignment 3: For flat and gouraud shading, just return the color you passed through the varying array.
-	 * The final color is calculated in the vertex shader and passed to the fragment shader.
-	 */
+    vec4f eye_space_vertex = canvas->matrices[canvashdl::modelview_matrix]*homogenize(vertex);
+    vec3f eye_space_normal = canvas->matrices[canvashdl::normal_matrix]*(vec4f)normal;
+	vec3f color, a, d, s;
+
+ 	const vector<lighthdl*> *lights;
+
+	canvas->get_uniform("lights", lights);
+
+	if (mag2(normal) > 0.0)
+	{
+		for (std::vector<lighthdl*>::const_iterator it = lights->begin(); it != lights->end(); it++)
+        {
+            (*it)->shade(a, d, s, eye_space_vertex, eye_space_normal, shininess);
+        }
+
+		color = clamp(emission + ambient*a + diffuse*d + specular*s, (float)0.0, (float)1.0);
+	}
+
+	varying.push_back(color[0]);
+	varying.push_back(color[1]);
+	varying.push_back(color[2]);
+
+   
+
+    eye_space_vertex = canvas->matrices[canvashdl::projection_matrix]*eye_space_vertex;
+    return eye_space_vertex/eye_space_vertex[3];
 }
 
 vec3f gouraudhdl::shade_fragment(canvashdl *canvas, vector<float> &varying) const
 {
-	/* TODO Assignment 3: For flat and gouraud shading, just return the color you passed through the varying array.
-	 * The final color is calculated in the vertex shader and passed to the fragment shader.
-	 */
-
-	return vec3f(1.0, 1.0, 1.0);
+	return vec3f(varying[0], varying[1], varying[2]);
 }
 
 materialhdl *gouraudhdl::clone() const
